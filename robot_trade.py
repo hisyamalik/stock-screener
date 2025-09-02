@@ -326,19 +326,19 @@ class MT5ForexRobot:
                     return 'HOLD => follow trend SELL'
             # find rsi divergence
             if sma_short > sma_long and current_price > sma_long and current_price >= sma_short:
-                if rsi >= self.rsi_oversold and divergence_flag == 'bullish':
-                    return 'BUY'
-                elif rsi < self.rsi_neutral and rsi >= self.rsi_readybought and divergence_flag == 'bullish':
-                    return 'BUY'
+                if rsi >= self.rsi_overbought and divergence_flag == 'bearish':
+                    return 'SELL'
+                elif rsi < self.rsi_neutral and rsi >= self.rsi_readybought and divergence_flag == 'bearish':
+                    return 'SELL'
                 else :
-                    return 'HOLD => find rsi divergence BUY'
+                    return 'BUY'
             elif sma_short < sma_long and current_price < sma_long and current_price <= sma_short:
-                if rsi <= self.rsi_overbought and divergence_flag == 'bearish':
-                    return 'SELL'
-                elif rsi > self.rsi_neutral and rsi >= self.rsi_readybought and divergence_flag == 'bearish':
-                    return 'SELL'
+                if rsi <= self.rsi_oversold and divergence_flag == 'bullish':
+                    return 'BUY'
+                elif rsi > self.rsi_neutral and rsi >= self.rsi_readysold and divergence_flag == 'bullish':
+                    return 'BUY'
                 else :
-                    return 'HOLD => find rsi divergence SELL'
+                    return 'SELL'
             # follow trend find rsi oversold and overbought
             elif sma_short > sma_long and current_price >= sma_short and current_price > sma_long :
                 if rsi <= 90 and rsi > self.rsi_overbought :
