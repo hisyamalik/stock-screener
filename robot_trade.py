@@ -210,7 +210,7 @@ class MT5ForexRobot:
             logger.error(f"Error in emergency close all positions: {e}")
             return False
     
-    def get_market_data(self, symbol: str, timeframe=mt5.TIMEFRAME_M5, count: int = 1000):
+    def get_market_data(self, symbol: str, timeframe=mt5.TIMEFRAME_M1, count: int = 1000):
         """Get historical market data from MT5"""
         try:
             rates = mt5.copy_rates_from_pos(symbol, timeframe, 0, count)
@@ -303,6 +303,7 @@ class MT5ForexRobot:
             # Get latest values
             latest = df.iloc[-1]
             current_price = latest['close']
+            current_price_open = latest['open']
             sma_short = latest['sma_short']
             sma_long = latest['sma_long']
             rsi = latest['rsi']
@@ -314,25 +315,25 @@ class MT5ForexRobot:
                 return 'HOLD'
                 
             # follow trend under/above moving average
-            if sma_short > sma_long and current_price >= sma_short and current_price <= sma_long: #uptrend
+            if sma_short > sma_long and current_price_open <= sma_short and current_price_open <= sma_long: #uptrend
                 if self.rsi_neutral < rsi <= self.rsi_readysold :
                     return 'BUY'
                 else:
                     return 'HOLD => follow trend BUY'
-            elif sma_short < sma_long and current_price <= sma_short and current_price >= sma_long : #downtrend
+            elif sma_short < sma_long and current_price_open >= sma_short and current_price_open >= sma_long : #downtrend
                 if self.rsi_neutral > rsi >= self.rsi_readybought :
                     return 'SELL'
                 else:
                     return 'HOLD => follow trend SELL'
             # find rsi divergence
-            if sma_short > sma_long and current_price > sma_long and current_price >= sma_short:
+            if sma_short > sma_long and current_price_open > sma_long and current_price_open <= sma_short:
                 if rsi >= self.rsi_overbought and divergence_flag == 'bearish':
                     return 'SELL'
                 elif rsi < self.rsi_neutral and rsi >= self.rsi_readybought and divergence_flag == 'bearish':
                     return 'SELL'
                 else :
                     return 'BUY'
-            elif sma_short < sma_long and current_price < sma_long and current_price <= sma_short:
+            elif sma_short < sma_long and current_price_open < sma_long and current_price_open >= sma_short:
                 if rsi <= self.rsi_oversold and divergence_flag == 'bullish':
                     return 'BUY'
                 elif rsi > self.rsi_neutral and rsi >= self.rsi_readysold and divergence_flag == 'bullish':
@@ -340,14 +341,14 @@ class MT5ForexRobot:
                 else :
                     return 'SELL'
             # follow trend find rsi oversold and overbought
-            elif sma_short > sma_long and current_price >= sma_short and current_price > sma_long :
+            elif sma_short > sma_long and current_price <= sma_short and current_price >= sma_long :
                 if rsi <= 90 and rsi > self.rsi_overbought :
                     return 'SELL'
                 elif rsi > 90 :
                     return 'SELL'
                 else :
                     return 'BUY'
-            elif sma_short < sma_long and current_price <= sma_short and current_price < sma_long :
+            elif sma_short < sma_long and current_price >= sma_short and current_price <= sma_long :
                 if rsi >= 10 and rsi < self.rsi_oversold :
                     return 'BUY'
                 elif rsi < 10 :
@@ -491,7 +492,7 @@ class MT5ForexRobot:
             
             if signal == 'BUY':
                 entry_price = tick.ask
-                stop_loss = entry_price - (1.5 * current_atr)
+                stop_loss = entry_price - (1.3 * current_atr)
                 take_profit = entry_price + (1.8 * current_atr)
                 
                 volume = self.calculate_position_size(symbol, entry_price, stop_loss)
@@ -512,7 +513,7 @@ class MT5ForexRobot:
             
             elif signal == 'SELL':
                 entry_price = tick.bid
-                stop_loss = entry_price + (1.5 * current_atr)
+                stop_loss = entry_price + (1.3 * current_atr)
                 take_profit = entry_price - (1.8 * current_atr)
                 
                 volume = self.calculate_position_size(symbol, entry_price, stop_loss)
