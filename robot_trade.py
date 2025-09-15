@@ -492,8 +492,8 @@ class MT5ForexRobot:
             
             if signal == 'BUY':
                 entry_price = tick.ask
-                stop_loss = entry_price - (1.3 * current_atr)
-                take_profit = entry_price + (1.8 * current_atr)
+                stop_loss = entry_price - (1.5 * current_atr)
+                take_profit = entry_price + (2 * current_atr)
                 
                 volume = self.calculate_position_size(symbol, entry_price, stop_loss)
                 
@@ -513,8 +513,8 @@ class MT5ForexRobot:
             
             elif signal == 'SELL':
                 entry_price = tick.bid
-                stop_loss = entry_price + (1.3 * current_atr)
-                take_profit = entry_price - (1.8 * current_atr)
+                stop_loss = entry_price + (1.5 * current_atr)
+                take_profit = entry_price - (2 * current_atr)
                 
                 volume = self.calculate_position_size(symbol, entry_price, stop_loss)
                 
