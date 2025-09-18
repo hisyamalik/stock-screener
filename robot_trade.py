@@ -31,7 +31,7 @@ class MT5ForexRobot:
         
         
         # Trading parameters
-        self.sma_short = 10
+        self.sma_short = 5
         self.sma_long = 20
         self.rsi_period = 9
         self.rsi_readybought = 70
@@ -210,7 +210,7 @@ class MT5ForexRobot:
             logger.error(f"Error in emergency close all positions: {e}")
             return False
     
-    def get_market_data(self, symbol: str, timeframe=mt5.TIMEFRAME_M1, count: int = 1000):
+    def get_market_data(self, symbol: str, timeframe=mt5.TIMEFRAME_M5, count: int = 1000):
         """Get historical market data from MT5"""
         try:
             rates = mt5.copy_rates_from_pos(symbol, timeframe, 0, count)
@@ -281,6 +281,25 @@ class MT5ForexRobot:
                     return "bearish"
 
         return "none"
+
+    def detect_crosses(self, prices: pd.Series) -> pd.Series:
+        """
+        Detect golden cross and death cross events.
+        Returns a Series with:
+          1  -> Golden Cross (bullish)
+         -1  -> Death Cross (bearish)
+          0  -> No cross
+        """
+        short_sma = self.calculate_sma(prices, self.sma_short)
+        long_sma = self.calculate_sma(prices, self.sma_long)
+
+        golden_cross = (short_sma > long_sma) & (short_sma.shift(1) <= long_sma.shift(1))
+        death_cross = (short_sma < long_sma) & (short_sma.shift(1) >= long_sma.shift(1))
+
+        signals = pd.Series(0, index=prices.index)
+        signals[golden_cross] = 1
+        signals[death_cross] = -1
+        return signals
     
     def analyze_market(self, symbol: str) -> str:
         """
@@ -299,64 +318,106 @@ class MT5ForexRobot:
             df['sma_short'] = self.calculate_sma(df['close'], self.sma_short)
             df['sma_long'] = self.calculate_sma(df['close'], self.sma_long)
             df['rsi'] = self.calculate_rsi(df['close'], self.rsi_period)
-            
+            df.set_index("time", inplace=True)
+            df['signal'] = self.detect_crosses(df["close"])
+
             # Get latest values
             latest = df.iloc[-1]
+            previous = df.iloc[-2] 
             current_price = latest['close']
             current_price_open = latest['open']
+
             sma_short = latest['sma_short']
             sma_long = latest['sma_long']
+            sma_short_prev = previous['sma_short']
+            sma_long_prev = previous['sma_long']
+            
             rsi = latest['rsi']
             divergence_flag = self.detect_rsi_divergence(df["close"], df["rsi"], order=25)
-            logger.info(f"RSI Divergence Status {divergence_flag} !")
+            
+            signals = 0
+            if sma_short_prev <= sma_long_prev and sma_short > sma_long:
+                signals = 1   # Golden Cross
+            elif sma_short_prev >= sma_long_prev and sma_short < sma_long:
+                signals = -1
+            logger.info(f"MA Cross Change : {signals}")
 
             # Check if we have valid indicator values
             if pd.isna(sma_short) or pd.isna(sma_long) or pd.isna(rsi):
                 return 'HOLD'
-                
+
+            # # follow trend under/above moving average
+            # if sma_short >= sma_long and signals == 1: #uptrend
+            #     if current_price_open >= sma_long :
+            #         return 'BUY'
+            #     else:
+            #         return 'HOLD => golden cross follow trend BUY'
+            # elif sma_short <= sma_long and signals == -1: #downtrend
+            #     if current_price_open <= sma_long :
+            #         return 'SELL'
+            #     else:
+            #         return 'HOLD => golden cross follow trend SELL'
+            # else :
+            #     return 'HOLD => miss all logic'
+
             # follow trend under/above moving average
-            if sma_short > sma_long and current_price_open <= sma_short and current_price_open <= sma_long: #uptrend
-                if self.rsi_neutral < rsi <= self.rsi_readysold :
+            if sma_short >= sma_long and signals > 0: #uptrend
+                if current_price_open >= sma_long :
                     return 'BUY'
                 else:
-                    return 'HOLD => follow trend BUY'
-            elif sma_short < sma_long and current_price_open >= sma_short and current_price_open >= sma_long : #downtrend
-                if self.rsi_neutral > rsi >= self.rsi_readybought :
+                    return 'HOLD => golden cross follow trend BUY'
+            elif sma_short <= sma_long and signals < 0: #downtrend
+                if current_price_open <= sma_long :
                     return 'SELL'
                 else:
-                    return 'HOLD => follow trend SELL'
-            # find rsi divergence
-            if sma_short > sma_long and current_price_open > sma_long and current_price_open <= sma_short:
-                if rsi >= self.rsi_overbought and divergence_flag == 'bearish':
-                    return 'SELL'
-                elif rsi < self.rsi_neutral and rsi >= self.rsi_readybought and divergence_flag == 'bearish':
-                    return 'SELL'
-                else :
-                    return 'BUY'
-            elif sma_short < sma_long and current_price_open < sma_long and current_price_open >= sma_short:
-                if rsi <= self.rsi_oversold and divergence_flag == 'bullish':
-                    return 'BUY'
-                elif rsi > self.rsi_neutral and rsi >= self.rsi_readysold and divergence_flag == 'bullish':
-                    return 'BUY'
-                else :
-                    return 'SELL'
-            # follow trend find rsi oversold and overbought
-            elif sma_short > sma_long and current_price <= sma_short and current_price >= sma_long :
-                if rsi <= 90 and rsi > self.rsi_overbought :
-                    return 'SELL'
-                elif rsi > 90 :
-                    return 'SELL'
-                else :
-                    return 'BUY'
-            elif sma_short < sma_long and current_price >= sma_short and current_price <= sma_long :
-                if rsi >= 10 and rsi < self.rsi_oversold :
-                    return 'BUY'
-                elif rsi < 10 :
-                    return 'BUY'
-                else :
-                    return 'SELL'
-            else:
+                    return 'HOLD => golden cross follow trend SELL'
+            else :
                 return 'HOLD => miss all logic'
+
+
+            # # follow trend under/above moving average
+            # if sma_short > sma_long and current_price_open <= sma_short and current_price_open <= sma_long: #uptrend
+            #     if self.rsi_neutral < rsi <= self.rsi_readysold :
+            #         return 'BUY'
+            #     else:
+            #         return 'HOLD => follow trend BUY'
+            # elif sma_short < sma_long and current_price_open >= sma_short and current_price_open >= sma_long : #downtrend
+            #     if self.rsi_neutral > rsi >= self.rsi_readybought :
+            #         return 'SELL'
+            #     else:
+            #         return 'HOLD => follow trend SELL'
+            # # find rsi divergence
+            # if sma_short > sma_long and current_price_open > sma_long and current_price_open <= sma_short:
+            #     if rsi >= self.rsi_overbought and divergence_flag == 'bearish':
+            #         return 'SELL'
+            #     elif rsi < self.rsi_neutral and rsi >= self.rsi_readybought and divergence_flag == 'bearish':
+            #         return 'SELL'
+            #     else :
+            #         return 'BUY'
+            # elif sma_short < sma_long and current_price_open < sma_long and current_price_open >= sma_short:
+            #     if rsi <= self.rsi_oversold and divergence_flag == 'bullish':
+            #         return 'BUY'
+            #     elif rsi > self.rsi_neutral and rsi >= self.rsi_readysold and divergence_flag == 'bullish':
+            #         return 'BUY'
+            #     else :
+            #         return 'SELL'
+            # # follow trend find rsi oversold and overbought
+            # elif sma_short > sma_long and current_price <= sma_short and current_price >= sma_long :
+            #     if rsi <= 90 and rsi > self.rsi_overbought :
+            #         return 'SELL'
+            #     elif rsi > 90 :
+            #         return 'SELL'
+            #     else :
+            #         return 'BUY'
+            # elif sma_short < sma_long and current_price >= sma_short and current_price <= sma_long :
+            #     if rsi >= 10 and rsi < self.rsi_oversold :
+            #         return 'BUY'
+            #     elif rsi < 10 :
+            #         return 'BUY'
+            #     else :
+            #         return 'SELL'
+            # else:
+            #     return 'HOLD => miss all logic'
                 
         except Exception as e:
             logger.error(f"Error analyzing market for {symbol}: {e}")
@@ -492,8 +553,8 @@ class MT5ForexRobot:
             
             if signal == 'BUY':
                 entry_price = tick.ask
-                stop_loss = entry_price - (1.5 * current_atr)
-                take_profit = entry_price + (2 * current_atr)
+                stop_loss = entry_price - (1 * current_atr)
+                take_profit = entry_price + (1.5 * current_atr)
                 
                 volume = self.calculate_position_size(symbol, entry_price, stop_loss)
                 
@@ -513,8 +574,8 @@ class MT5ForexRobot:
             
             elif signal == 'SELL':
                 entry_price = tick.bid
-                stop_loss = entry_price + (1.5 * current_atr)
-                take_profit = entry_price - (2 * current_atr)
+                stop_loss = entry_price + (1 * current_atr)
+                take_profit = entry_price - (1.5 * current_atr)
                 
                 volume = self.calculate_position_size(symbol, entry_price, stop_loss)
                 
@@ -766,12 +827,12 @@ if __name__ == "__main__":
     )
     
     # Define symbols to trade (make sure these are available in your MT5)
+    # symbols = ['USDCHF']
     symbols = ['XAUUSD']
-    # symbols = ['USDJPY']
     
     try:
         # Run the trading bot for 30 minutes (adjust as needed)
-        robot.run_trading_bot(symbols, run_duration_minutes=240)
+        robot.run_trading_bot(symbols, run_duration_minutes=360)
         
         # Get and display statistics
         stats = robot.get_trading_cycle()
