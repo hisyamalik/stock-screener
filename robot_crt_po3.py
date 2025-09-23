@@ -13,10 +13,10 @@ def quick_analysis_example():
     
     # Initialize trader with demo account
     trader = MT5_CRT_PowerOfThree(
-        login=123456789,
-        password="demo_password",
-        server="Demo-Server",
-        symbol="EURUSD"
+        login=5039253217,
+        password="4kV_QcFv",
+        server="MetaQuotes-Demo",
+        symbol="XAUUSD"
     )
     
     # Get historical data and analyze
