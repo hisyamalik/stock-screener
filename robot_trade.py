@@ -31,8 +31,8 @@ class MT5ForexRobot:
         
         
         # Trading parameters
-        self.sma_short = 9
-        self.sma_long = 21
+        self.sma_short = 5
+        self.sma_long = 20
         self.rsi_period = 9
         self.rsi_readybought = 70
         self.rsi_overbought = 80
