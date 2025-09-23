@@ -1,73 +1,19 @@
-def load_all_idx_symbols(self, use_comprehensive=True):
-        """Load all Indonesian stock symbols automatically"""
-        if use_comprehensive:
-            # Get comprehensive list from multiple sources
-            all_symbols = self.get_comprehensive_stock_symbols()
-        else:
-            # Use basic predefined list
-            all_symbols = [
-                'BBCA', 'BBRI', 'BMRI', 'TLKM', 'ASII', 'UNVR', 'ICBP', 'KLBF',
-                'SMGR', 'INDF', 'GGRM', 'HMSP', 'CPIN', 'ADRO', 'PTBA', 'BSDE'
-            ]
-        
-        # Add .JK suffix for Yahoo Finance
-        self.idx_symbols = [symbol + '.JK' if not symbol.endswith('.JK') else symbol 
-                           for symbol in all_symbols]
-        
-        print(f"Loaded {len(self.idx_symbols)} Indonesian stocks with .JK suffix")
-        return self.idx_symbols
-    
-    def validate_symbols(self, sample_size=10):
-        """Validate a sample of symbols to ensure they work with yfinance"""
-        if not self.idx_symbols:
-            print("No symbols loaded. Please run load_all_idx_symbols() first.")
-            return
-        
-        print(f"Validating {sample_size} random symbols...")
-        
-        import random
-        sample_symbols = random.sample(self.idx_symbols, min(sample_size, len(self.idx_symbols)))
-        
-        valid_symbols = []
-        invalid_symbols = []
-        
-        for symbol in sample_symbols:
-            try:
-                stock = yf.Ticker(symbol)
-                data = stock.history(period='5d')
-                
-                if len(data) > 0:
-                    valid_symbols.append(symbol)
-                    print(f"✓ {symbol} - Valid")
-                else:
-                    invalid_symbols.append(symbol)
-                    print(f"✗ {symbol} - No data")
-                    
-            except Exception as e:
-                invalid_symbols.append(symbol)
-                print(f"✗ {symbol} - Error: {str(e)[:50]}...")
-        
-        print(f"\nValidation Results:")
-        print(f"Valid: {len(valid_symbols)}/{len(sample_symbols)}")
-        print(f"Invalid: {len(invalid_symbols)}/{len(sample_symbols)}")
-        
-        if invalid_symbols:
-            print(f"Invalid symbols: {invalid_symbols[:5]}{'...' if len(invalid_symbols) > 5 else ''}")
-        
-        return valid_symbols, invalid_symbolsimport pandas as pd
+import pandas as pd
 import numpy as np
 import yfinance as yf
 import talib
 import matplotlib.pyplot as plt
 import seaborn as sns
 from datetime import datetime, timedelta
-import requests
+import certifi, requests
 import warnings
 import re
 import time
 from bs4 import BeautifulSoup
 import json
+import urllib3
 warnings.filterwarnings('ignore')
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 class IndonesianStockScreener:
     def __init__(self):
@@ -279,7 +225,7 @@ class IndonesianStockScreener:
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
             }
             
-            response = requests.get(url, headers=headers, timeout=10)
+            response = requests.get(url, headers=headers, timeout=10, verify=certifi.where())
             
             if response.status_code == 200:
                 data = response.json()
@@ -311,7 +257,7 @@ class IndonesianStockScreener:
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
             }
             
-            response = requests.get(url, headers=headers, timeout=10)
+            response = requests.get(url, headers=headers, timeout=10, verify=certifi.where())
             
             if response.status_code == 200:
                 soup = BeautifulSoup(response.content, 'html.parser')
@@ -824,7 +770,7 @@ if __name__ == "__main__":
     
     # Load ALL Indonesian stock symbols automatically
     print("Fetching all Indonesian stock symbols...")
-    screener.load_all_idx_symbols(use_comprehensive=True)
+    screener.load_all_idx_symbols(use_comprehensive=False)
     
     # Validate a sample of symbols
     print("\nValidating symbols...")
