@@ -15,29 +15,34 @@ logger = logging.getLogger(__name__)
 
 class MT5ForexRobot:
     def __init__(self, risk_per_trade: float = 0.01, magic_number: int = 12345,
-                 max_drawdown_percent: float = 25.0, drawdown_period_hours: int = 24):
+                 max_drawdown_percent: float = 25.0, drawdown_period_hours: int = 24,
+                 timeframe: int = mt5.TIMEFRAME_M5, trend_timeframe: int = mt5.TIMEFRAME_M30):
         """
         Initialize the MT5 Forex Trading Robot
         
         Args:
             risk_per_trade: Risk percentage per trade (e.g., 0.02 = 2%)
             magic_number: Unique identifier for this robot's trades
-            max_drawdown_percent: Maximum allowed equity drawdown percentage (e.g., 25.0 = 25%)
-            drawdown_period_hours: Period in hours to monitor drawdown (e.g., 24 = 24 hours)
+            max_drawdown_percent: Maximum allowed equity drawdown percentage
+            drawdown_period_hours: Period in hours to monitor drawdown
+            timeframe: Current chart timeframe for entries (M5, M15, M30)
+            trend_timeframe: Higher timeframe for trend filtering (M30, H1)
         """
         self.risk_per_trade = risk_per_trade
         self.magic_number = magic_number
         self.is_running = False
-        
+        self.timeframe = timeframe
+        self.trend_timeframe = trend_timeframe
         
         # Trading parameters
-        self.sma_short = 5
-        self.sma_long = 20
-        self.rsi_period = 9
-        self.rsi_readybought = 70
+        self.sma_short = 7   # Slightly slower to reduce noise
+        self.sma_long = 25   # Better for M5-M30 cycles
+        self.sma_trend = 200 # Standard for Trend Filter
+        self.rsi_period = 14 # Standard period for more stability
+        self.rsi_readybought = 65 # More conservative for buy entries
         self.rsi_overbought = 80
         self.rsi_neutral = 50
-        self.rsi_readysold = 30
+        self.rsi_readysold = 35 # More conservative for sell entries
         self.rsi_oversold = 20
         self.atr_period = 14
         
@@ -48,6 +53,8 @@ class MT5ForexRobot:
         self.initial_equity = 0.0
         self.peak_equity = 0.0
         self.trading_stopped_due_to_drawdown = False
+        self.tracked_positions: Dict[int, Dict] = {}
+        self.last_history_check = datetime.now() - timedelta(minutes=10)
         
         # Initialize MT5 connection
         self.initialize_mt5()
@@ -231,11 +238,16 @@ class MT5ForexRobot:
         return prices.rolling(window=period).mean()
     
     def calculate_rsi(self, prices: pd.Series, period: int = 14) -> pd.Series:
-        """Calculate Relative Strength Index"""
+        """Calculate Relative Strength Index (Wilder's Smoothing)"""
         delta = prices.diff()
-        gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
-        loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
-        rs = gain / loss
+        gain = delta.where(delta > 0, 0)
+        loss = -delta.where(delta < 0, 0)
+        
+        # Wilder's Smoothing using EWM
+        avg_gain = gain.ewm(alpha=1/period, min_periods=period, adjust=False).mean()
+        avg_loss = loss.ewm(alpha=1/period, min_periods=period, adjust=False).mean()
+        
+        rs = avg_gain / avg_loss
         rsi = 100 - (100 / (1 + rs))
         return rsi
     
@@ -303,101 +315,65 @@ class MT5ForexRobot:
     
     def analyze_market(self, symbol: str) -> str:
         """
-        Analyze market conditions and generate trading signal
-        
-        Returns:
-            'BUY', 'SELL', or 'HOLD'
+        Analyze market conditions and generate trading signal with HTF trend filtering.
+        Optimized for M5-M30 scalping/day-trading.
         """
         try:
-            # Get market data
-            df = self.get_market_data(symbol)
+            # 1. Get Higher Timeframe (HTF) Trend data
+            df_htf = self.get_market_data(symbol, timeframe=self.trend_timeframe, count=self.sma_trend + 1)
+            if df_htf is None or len(df_htf) < self.sma_trend:
+                return 'HOLD'
+            
+            df_htf['sma_trend'] = self.calculate_sma(df_htf['close'], self.sma_trend)
+            htf_price = df_htf.iloc[-1]['close']
+            htf_trend_sma = df_htf.iloc[-1]['sma_trend']
+            
+            # Determine overall market direction from HTF
+            is_bullish_trend = htf_price > htf_trend_sma
+            is_bearish_trend = htf_price < htf_trend_sma
+            
+            # 2. Get Lower Timeframe (LTF) Entry data
+            df = self.get_market_data(symbol, timeframe=self.timeframe, count=self.sma_long + 10)
             if df is None or len(df) < self.sma_long:
                 return 'HOLD'
             
-            # Calculate indicators
+            # Calculate LTF Indicators
             df['sma_short'] = self.calculate_sma(df['close'], self.sma_short)
             df['sma_long'] = self.calculate_sma(df['close'], self.sma_long)
             df['rsi'] = self.calculate_rsi(df['close'], self.rsi_period)
-            df.set_index("time", inplace=True)
-            df['signal'] = self.detect_crosses(df["close"])
-
-            # Get latest values
+            
             latest = df.iloc[-1]
-            previous = df.iloc[-2] 
+            prev = df.iloc[-2]
             current_price = latest['close']
-            current_price_open = latest['open']
-
-            sma_short = latest['sma_short']
-            sma_long = latest['sma_long']
-            sma_short_prev = previous['sma_short']
-            sma_long_prev = previous['sma_long']
-            
             rsi = latest['rsi']
-            divergence_flag = self.detect_rsi_divergence(df["close"], df["rsi"], order=25)
             
-            signals = 0
-            if sma_short_prev <= sma_long_prev and sma_short > sma_long:
-                signals = 1   # Golden Cross
-            elif sma_short_prev >= sma_long_prev and sma_short < sma_long:
-                signals = -1
-            logger.info(f"MA Cross Change : {signals}")
+            # Signal Detection
+            golden_cross = (prev['sma_short'] <= prev['sma_long']) and (latest['sma_short'] > latest['sma_long'])
+            death_cross = (prev['sma_short'] >= prev['sma_long']) and (latest['sma_short'] < latest['sma_long'])
+            
+            # Log current state
+            trend_str = "BULLISH" if is_bullish_trend else "BEARISH"
+            logger.info(f"Market Scan: {symbol} | HTF Trend ({self.trend_timeframe}): {trend_str} | LTF RSI ({self.timeframe}): {rsi:.2f}")
 
-            # Check if we have valid indicator values
-            if pd.isna(sma_short) or pd.isna(sma_long) or pd.isna(rsi):
-                return 'HOLD'
-
-            # # follow trend under/above moving average
-            # if sma_short >= sma_long and signals == 1: #uptrend
-            #     if current_price_open >= sma_long :
-            #         return 'BUY'
-            #     else:
-            #         return 'HOLD => golden cross follow trend BUY'
-            # elif sma_short <= sma_long and signals == -1: #downtrend
-            #     if current_price_open <= sma_long :
-            #         return 'SELL'
-            #     else:
-            #         return 'HOLD => golden cross follow trend SELL'
-            # else :
-            #     return 'HOLD => miss all logic'
-
-            # follow trend under/above moving average
-            if sma_short >= sma_long and signals > 0: #uptrend
-                if current_price_open >= sma_long :
+            # 3. Decision Logic: LTF entry MUST align with HTF trend
+            
+            # BUY: HTF is bullish + LTF Golden Cross + RSI not overbought
+            if is_bullish_trend and golden_cross:
+                if rsi < self.rsi_readybought:
+                    logger.info(f"✅ BUY SIGNAL: Confirmed on HTF. RSI: {rsi:.2f}")
                     return 'BUY'
-                else:
-                    return 'HOLD => golden cross follow trend BUY'
-            elif sma_short <= sma_long and signals < 0: #downtrend
-                if current_price_open <= sma_long :
+            
+            # SELL: HTF is bearish + LTF Death Cross + RSI not oversold
+            elif is_bearish_trend and death_cross:
+                if rsi > self.rsi_readysold:
+                    logger.info(f"✅ SELL SIGNAL: Confirmed on HTF. RSI: {rsi:.2f}")
                     return 'SELL'
-                else:
-                    return 'HOLD => golden cross follow trend SELL'
-            else :
-                return 'HOLD => miss all logic'
+            
+            return 'HOLD'
 
-
-            # # follow trend under/above moving average
-            # if sma_short > sma_long and current_price_open <= sma_short and current_price_open <= sma_long: #uptrend
-            #     if self.rsi_neutral < rsi <= self.rsi_readysold :
-            #         return 'BUY'
-            #     else:
-            #         return 'HOLD => follow trend BUY'
-            # elif sma_short < sma_long and current_price_open >= sma_short and current_price_open >= sma_long : #downtrend
-            #     if self.rsi_neutral > rsi >= self.rsi_readybought :
-            #         return 'SELL'
-            #     else:
-            #         return 'HOLD => follow trend SELL'
-            # # find rsi divergence
-            # if sma_short > sma_long and current_price_open > sma_long and current_price_open <= sma_short:
-            #     if rsi >= self.rsi_overbought and divergence_flag == 'bearish':
-            #         return 'SELL'
-            #     elif rsi < self.rsi_neutral and rsi >= self.rsi_readybought and divergence_flag == 'bearish':
-            #         return 'SELL'
-            #     else :
-            #         return 'BUY'
-            # elif sma_short < sma_long and current_price_open < sma_long and current_price_open >= sma_short:
-            #     if rsi <= self.rsi_oversold and divergence_flag == 'bullish':
-            #         return 'BUY'
-            #     elif rsi > self.rsi_neutral and rsi >= self.rsi_readysold and divergence_flag == 'bullish':
+        except Exception as e:
+            logger.error(f"Error in analyze_market: {e}")
+            return 'HOLD'
             #         return 'BUY'
             #     else :
             #         return 'SELL'
@@ -466,6 +442,116 @@ class MT5ForexRobot:
         """Get current open positions"""
         positions = mt5.positions_get()
         return [pos for pos in positions if pos.magic == self.magic_number] if positions else []
+
+    def sync_positions_with_mt5(self) -> List[Dict]:
+        """
+        Reconcile locally tracked positions with MT5 live positions.
+        Detects positions closed manually from the MT5 app or elsewhere.
+
+        Returns:
+            A list of position-close events detected during this sync.
+        """
+        try:
+            current_positions = self.get_current_positions()
+            current_map = {position.ticket: position for position in current_positions}
+            closed_tickets = set(self.tracked_positions) - set(current_map)
+            close_events = []
+
+            for ticket in closed_tickets:
+                tracked = self.tracked_positions.pop(ticket)
+                close_info = self.get_position_close_info(ticket, tracked["symbol"])
+                event = {
+                    "ticket": ticket,
+                    "symbol": tracked["symbol"],
+                    "volume": tracked["volume"],
+                    "close_reason": close_info.get("reason", "unknown"),
+                    "profit": close_info.get("profit"),
+                    "closed_at": close_info.get("time"),
+                }
+                close_events.append(event)
+
+                profit_text = (
+                    f"${event['profit']:.2f}"
+                    if event["profit"] is not None
+                    else "unknown"
+                )
+                closed_at_text = (
+                    event["closed_at"].strftime("%Y-%m-%d %H:%M:%S")
+                    if event["closed_at"] is not None
+                    else "unknown time"
+                )
+                logger.warning(
+                    f"Position closed outside robot flow: {event['symbol']} "
+                    f"(ticket={ticket}, reason={event['close_reason']}, "
+                    f"profit={profit_text}, closed_at={closed_at_text})"
+                )
+
+            for position in current_positions:
+                self.tracked_positions[position.ticket] = {
+                    "symbol": position.symbol,
+                    "volume": position.volume,
+                    "type": position.type,
+                    "opened_at": datetime.fromtimestamp(position.time),
+                }
+
+            self.last_history_check = datetime.now()
+            return close_events
+
+        except Exception as e:
+            logger.error(f"Error syncing MT5 positions: {e}")
+            return []
+
+    def get_position_close_info(self, position_ticket: int, symbol: str) -> Dict:
+        """Get the latest close deal info for a specific position ticket."""
+        try:
+            start_time = self.last_history_check - timedelta(minutes=5)
+            end_time = datetime.now() + timedelta(minutes=1)
+            deals = mt5.history_deals_get(start_time, end_time)
+
+            if not deals:
+                return {}
+
+            closing_deals = []
+            for deal in deals:
+                if getattr(deal, "position_id", None) != position_ticket:
+                    continue
+                if deal.entry != mt5.DEAL_ENTRY_OUT:
+                    continue
+                if symbol and deal.symbol != symbol:
+                    continue
+                closing_deals.append(deal)
+
+            if not closing_deals:
+                return {}
+
+            last_close = max(closing_deals, key=lambda deal: deal.time)
+            deal_reason_map = {}
+            for attr_name, label in [
+                ("DEAL_REASON_CLIENT", "manual/client"),
+                ("DEAL_REASON_EXPERT", "expert/robot"),
+                ("DEAL_REASON_SL", "stop loss"),
+                ("DEAL_REASON_TP", "take profit"),
+                ("DEAL_REASON_SO", "stop out"),
+                ("DEAL_REASON_ROLLOVER", "rollover"),
+                ("DEAL_REASON_VMARGIN", "variation margin"),
+                ("DEAL_REASON_SPLIT", "split"),
+            ]:
+                attr_value = getattr(mt5, attr_name, None)
+                if attr_value is not None:
+                    deal_reason_map[attr_value] = label
+
+            return {
+                "profit": last_close.profit,
+                "time": datetime.fromtimestamp(last_close.time),
+                "reason": deal_reason_map.get(
+                    getattr(last_close, "reason", None),
+                    f"reason_{getattr(last_close, 'reason', 'unknown')}"
+                ),
+            }
+
+        except Exception as e:
+            logger.error(f"Error reading close info for ticket {position_ticket}: {e}")
+            return {}
     
     def place_order(self, symbol: str, order_type: int, volume: float, price: float, 
                    stop_loss: float = None, take_profit: float = None) -> bool:
@@ -602,6 +688,7 @@ class MT5ForexRobot:
     def monitor_positions(self):
         """Monitor and manage existing positions"""
         try:
+            self.sync_positions_with_mt5()
             positions = self.get_current_positions()
             
             for position in positions:
@@ -656,6 +743,9 @@ class MT5ForexRobot:
         try:
             while self.is_running and datetime.now() < end_time:
                 logger.info("--- Trading Cycle ---")
+
+                # Keep local position state aligned with MT5, including manual closes
+                self.sync_positions_with_mt5()
                 
                 # PRIORITY: Check drawdown protection first
                 if not self.check_and_handle_drawdown():
@@ -742,44 +832,83 @@ class MT5ForexRobot:
     def get_trading_cycle(self) -> Dict:
         """Get trading statistics each cycle for reporting"""
         try:
-            # Get all deals (closed positions) for this magic number
-            end_time = datetime.fromtimestamp(self.server_time)
+            end_time = datetime.now()
             start_time = end_time - timedelta(hours=4)
-
             deals = mt5.history_deals_get(start_time, end_time)
-            print(f"Found {len(deals)} deals in last timestamp")
-            for d in deals:
-                print(d.ticket, d.symbol, d.magic, d.type, d.entry, d.volume, d.profit, d.commission, d.swap)
 
             if not deals:
                 return {"message": "No trading history found"}
 
-            # All deals for this robot (profit will include fees, commission, swaps, etc.)
-            robot_deals = [d for d in deals if d.magic == self.magic_number]
-            if not robot_deals:
+            position_groups = {}
+            for deal in deals:
+                position_id = getattr(deal, "position_id", None)
+                if not position_id:
+                    continue
+                position_groups.setdefault(position_id, []).append(deal)
+
+            robot_positions = []
+            for position_id, position_deals in position_groups.items():
+                if any(getattr(deal, "magic", None) == self.magic_number for deal in position_deals):
+                    robot_positions.append((position_id, position_deals))
+
+            if not robot_positions:
                 return {"message": "No deals found for this robot"}
 
-            # Total profit = all deals (commissions/swaps included)
-            total_profit = sum(d.profit for d in robot_deals)
+            close_entries = (mt5.DEAL_ENTRY_OUT, getattr(mt5, "DEAL_ENTRY_OUT_BY", -1))
+            closed_positions = []
 
-            # Win/Loss = only from closing trades
-            closing_deals = [d for d in robot_deals if d.entry == mt5.DEAL_ENTRY_OUT]
+            for position_id, position_deals in robot_positions:
+                if not any(deal.entry in close_entries for deal in position_deals):
+                    continue
 
-            total_trades = len(closing_deals)
-            winning_trades = sum(1 for d in closing_deals if d.profit > 0)
-            losing_trades = total_trades - winning_trades
-            win_rate = (winning_trades / total_trades) * 100 if total_trades else 0
+                net_profit = sum(
+                    (getattr(deal, "profit", 0.0) or 0.0) +
+                    (getattr(deal, "commission", 0.0) or 0.0) +
+                    (getattr(deal, "swap", 0.0) or 0.0) +
+                    (getattr(deal, "fee", 0.0) or 0.0)
+                    for deal in position_deals
+                )
+                close_times = [
+                    datetime.fromtimestamp(deal.time)
+                    for deal in position_deals
+                    if deal.entry in close_entries
+                ]
+
+                closed_positions.append({
+                    "position_id": position_id,
+                    "symbol": next((deal.symbol for deal in position_deals if getattr(deal, "symbol", None)), "UNKNOWN"),
+                    "net_profit": net_profit,
+                    "closed_at": max(close_times) if close_times else None,
+                })
+
+            if not closed_positions:
+                return {"message": "No closed trades found for this robot in the last 4 hours"}
+
+            total_profit = sum(position["net_profit"] for position in closed_positions)
+            total_trades = len(closed_positions)
+            winning_trades = sum(1 for position in closed_positions if position["net_profit"] > 0)
+            losing_trades = sum(1 for position in closed_positions if position["net_profit"] < 0)
+            breakeven_trades = total_trades - winning_trades - losing_trades
+            win_rate = (winning_trades / total_trades) * 100 if total_trades else 0.0
+            latest_close = max(
+                (position["closed_at"] for position in closed_positions if position["closed_at"] is not None),
+                default=None
+            )
 
             return {
-                "🚀 Total Trades": total_trades,
-                "👍 Winning Trades": winning_trades,
-                "👎 Losing Trades": losing_trades,
-                "😎 Total Profit (incl. fees)": round(total_profit, 2),
-                "❤️ Win Rate": f"{win_rate:.2f}%",
-                "😀 Initial Balance": self.initial_equity,
-                "😂 Current Balance": self.get_account_balance()
+                "Period": f"{start_time.strftime('%Y-%m-%d %H:%M:%S')} -> {end_time.strftime('%Y-%m-%d %H:%M:%S')}",
+                "Total Trades": total_trades,
+                "Winning Trades": winning_trades,
+                "Losing Trades": losing_trades,
+                "Breakeven Trades": breakeven_trades,
+                "Win Rate": f"{win_rate:.2f}%",
+                "Net Profit": round(total_profit, 2),
+                "Open Positions": len(self.get_current_positions()),
+                "Initial Balance": round(self.initial_equity, 2),
+                "Current Balance": round(self.get_account_balance(), 2),
+                "Last Closed Trade": latest_close.strftime('%Y-%m-%d %H:%M:%S') if latest_close else "N/A"
             }
-            
+
         except Exception as e:
             logger.error(f"Error getting cycle statistics: {e}")
             return {"error": str(e)}

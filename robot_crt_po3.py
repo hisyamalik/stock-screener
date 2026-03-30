@@ -288,48 +288,52 @@ class MT5_CRT_PowerOfThree:
             return None
     
     def identify_market_structure(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Identify market structure: HH, LL, BOS"""
+        """Identify market structure: HH, LL, BOS, CHoCH"""
         try:
             data = df.copy()
             
             # Calculate swing highs and lows (using dynamic window)
-            data['swing_high'] = data['high'].rolling(window=self.swing_window, center=True).max() == data['high']
-            data['swing_low'] = data['low'].rolling(window=self.swing_window, center=True).min() == data['low']
+            data['swing_high'] = (data['high'] == data['high'].rolling(window=self.swing_window*2+1, center=True).max())
+            data['swing_low'] = (data['low'] == data['low'].rolling(window=self.swing_window*2+1, center=True).min())
             
             # Initialize structure columns
             data['structure'] = None
             data['bos'] = False
+            data['choch'] = False
             data['trend'] = None
             
-            # Track previous swing points
             prev_high = None
             prev_low = None
             current_trend = None
             
             for i in range(len(data)):
                 if data.iloc[i]['swing_high']:
+                    curr_high = data.iloc[i]['high']
                     if prev_high is not None:
-                        if data.iloc[i]['high'] > prev_high:
+                        if curr_high > prev_high:
                             data.iloc[i, data.columns.get_loc('structure')] = 'HH'
-                            if current_trend != 'bullish':
+                            if current_trend == 'bearish':
+                                data.iloc[i, data.columns.get_loc('choch')] = True
+                            elif current_trend == 'bullish':
                                 data.iloc[i, data.columns.get_loc('bos')] = True
-                                current_trend = 'bullish'
+                            current_trend = 'bullish'
                         else:
                             data.iloc[i, data.columns.get_loc('structure')] = 'LH'
-                            
-                    prev_high = data.iloc[i]['high']
+                    prev_high = curr_high
                     
                 elif data.iloc[i]['swing_low']:
+                    curr_low = data.iloc[i]['low']
                     if prev_low is not None:
-                        if data.iloc[i]['low'] < prev_low:
+                        if curr_low < prev_low:
                             data.iloc[i, data.columns.get_loc('structure')] = 'LL'
-                            if current_trend != 'bearish':
+                            if current_trend == 'bullish':
+                                data.iloc[i, data.columns.get_loc('choch')] = True
+                            elif current_trend == 'bearish':
                                 data.iloc[i, data.columns.get_loc('bos')] = True
-                                current_trend = 'bearish'
+                            current_trend = 'bearish'
                         else:
                             data.iloc[i, data.columns.get_loc('structure')] = 'HL'
-                            
-                    prev_low = data.iloc[i]['low']
+                    prev_low = curr_low
                 
                 data.iloc[i, data.columns.get_loc('trend')] = current_trend
                 
@@ -338,46 +342,82 @@ class MT5_CRT_PowerOfThree:
         except Exception as e:
             logging.error(f"Error identifying market structure: {e}")
             return df
+
+    def identify_fvg(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Identify Fair Value Gaps (FVG) and Displacement"""
+        data = df.copy()
+        data['fvg_bull'] = False
+        data['fvg_bear'] = False
+        data['displacement'] = False
+        
+        atr = self.calculate_atr(data)
+        
+        for i in range(2, len(data)):
+            # Bullish FVG: Low of candle[i] > High of candle[i-2]
+            if data.iloc[i]['low'] > data.iloc[i-2]['high']:
+                # Check for displacement (candle[i-1] is large)
+                body_size = abs(data.iloc[i-1]['close'] - data.iloc[i-1]['open'])
+                if body_size > atr.iloc[i-1] * 1.5:
+                    data.iloc[i-1, data.columns.get_loc('fvg_bull')] = True
+                    data.iloc[i-1, data.columns.get_loc('displacement')] = True
+                    
+            # Bearish FVG: High of candle[i] < Low of candle[i-2]
+            elif data.iloc[i]['high'] < data.iloc[i-2]['low']:
+                body_size = abs(data.iloc[i-1]['close'] - data.iloc[i-1]['open'])
+                if body_size > atr.iloc[i-1] * 1.5:
+                    data.iloc[i-1, data.columns.get_loc('fvg_bear')] = True
+                    data.iloc[i-1, data.columns.get_loc('displacement')] = True
+                    
+        return data
     
     def identify_liquidity_zones(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Identify buy-side and sell-side liquidity zones"""
+        """Identify liquidity zones and detect sweeps"""
         try:
             data = df.copy()
             
-            # Calculate recent highs and lows (using dynamic lookback)
+            # Identify equal highs/lows
             data['recent_high'] = data['high'].rolling(window=self.lookback_period).max()
             data['recent_low'] = data['low'].rolling(window=self.lookback_period).min()
             
-            # Identify equal highs/lows
-            data['equal_highs'] = False
-            data['equal_lows'] = False
+            data['sweep_bull'] = False
+            data['sweep_bear'] = False
             
-            # Dynamic tolerance based on ATR
-            data['atr'] = self.calculate_atr(data, period=14)
-            tolerance = data['atr'] * 0.3
+            for i in range(1, len(data)):
+                # Bullish Sweep: Price went below recent low and then closed above it
+                if data.iloc[i-1]['low'] < data.iloc[i-1]['recent_low'] and data.iloc[i]['close'] > data.iloc[i-1]['recent_low']:
+                    data.iloc[i, data.columns.get_loc('sweep_bull')] = True
+                
+                # Bearish Sweep: Price went above recent high and then closed below it
+                if data.iloc[i-1]['high'] > data.iloc[i-1]['recent_high'] and data.iloc[i]['close'] < data.iloc[i-1]['recent_high']:
+                    data.iloc[i, data.columns.get_loc('sweep_bear')] = True
             
-            for i in range(self.lookback_period, len(data)):
-                # Check for equal highs
-                recent_highs = data['high'][i-self.lookback_period:i]
-                max_high = recent_highs.max()
-                equal_count = sum(abs(recent_highs - max_high) <= tolerance.iloc[i])
-                
-                if equal_count >= 2:
-                    data.iloc[i, data.columns.get_loc('equal_highs')] = True
-                    
-                # Check for equal lows
-                recent_lows = data['low'][i-self.lookback_period:i]
-                min_low = recent_lows.min()
-                equal_count = sum(abs(recent_lows - min_low) <= tolerance.iloc[i])
-                
-                if equal_count >= 2:
-                    data.iloc[i, data.columns.get_loc('equal_lows')] = True
-                    
             return data
             
         except Exception as e:
             logging.error(f"Error identifying liquidity zones: {e}")
             return df
+
+    def identify_po3_phases(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Identify PO3 Phases: Accumulation, Manipulation, Distribution"""
+        data = df.copy()
+        data['phase'] = 'unknown'
+        
+        for i in range(len(data)):
+            hour = data.index[i].hour
+            
+            # Accumulation (Asian Session usually)
+            if self.po3_sessions['asia']['start'] <= hour or hour <= self.po3_sessions['asia']['end']:
+                data.iloc[i, data.columns.get_loc('phase')] = 'accumulation'
+            
+            # Manipulation (London Open / Judas Swing)
+            elif self.po3_sessions['london']['start'] <= hour <= self.po3_sessions['london']['end']:
+                data.iloc[i, data.columns.get_loc('phase')] = 'manipulation'
+            
+            # Distribution (NY Session / Expansion)
+            elif self.po3_sessions['new_york']['start'] <= hour <= self.po3_sessions['new_york']['end']:
+                data.iloc[i, data.columns.get_loc('phase')] = 'distribution'
+                
+        return data
     
     def calculate_atr(self, df: pd.DataFrame, period: int = 14) -> pd.Series:
         """Calculate Average True Range"""

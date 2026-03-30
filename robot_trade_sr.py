@@ -293,59 +293,71 @@ class SupportResistanceRobot:
     
     def identify_pivot_points(self, df: pd.DataFrame, strength: int = 2) -> Dict[str, List[Dict]]:
         """
-        Identify pivot highs and lows in price data
-        
-        Args:
-            df: DataFrame with OHLC data
-            strength: Number of bars each side to confirm pivot
-            
-        Returns:
-            Dictionary with 'highs' and 'lows' containing pivot points
+        Identify pivot highs and lows in price data (Optimized)
         """
         try:
             highs = []
             lows = []
             
-            for i in range(strength, len(df) - strength):
-                # Check for pivot high
-                is_pivot_high = True
-                current_high = df.iloc[i]['high']
+            # Vectorized pivot detection
+            df['is_high'] = (df['high'] == df['high'].rolling(window=strength*2+1, center=True).max())
+            df['is_low'] = (df['low'] == df['low'].rolling(window=strength*2+1, center=True).min())
+            
+            pivot_highs = df[df['is_high']].index
+            pivot_lows = df[df['is_low']].index
+            
+            for i in pivot_highs:
+                if i < strength or i >= len(df) - strength: continue
+                highs.append({
+                    'price': df.iloc[i]['high'],
+                    'time': df.iloc[i]['time'],
+                    'index': i,
+                    'bar_count': len(df) - i
+                })
                 
-                for j in range(i - strength, i + strength + 1):
-                    if j != i and df.iloc[j]['high'] >= current_high:
-                        is_pivot_high = False
-                        break
-                
-                if is_pivot_high:
-                    highs.append({
-                        'price': current_high,
-                        'time': df.iloc[i]['time'],
-                        'index': i,
-                        'bar_count': len(df) - i # Age in bars
-                    })
-                
-                # Check for pivot low
-                is_pivot_low = True
-                current_low = df.iloc[i]['low']
-                
-                for j in range(i - strength, i + strength + 1):
-                    if j != i and df.iloc[j]['low'] <= current_low:
-                        is_pivot_low = False
-                        break
-                
-                if is_pivot_low:
-                    lows.append({
-                        'price': current_low,
-                        'time': df.iloc[i]['time'],
-                        'index': i,
-                        'bar_count': len(df) - i # Age in bars
-                    })
+            for i in pivot_lows:
+                if i < strength or i >= len(df) - strength: continue
+                lows.append({
+                    'price': df.iloc[i]['low'],
+                    'time': df.iloc[i]['time'],
+                    'index': i,
+                    'bar_count': len(df) - i
+                })
             
             return {'highs': highs, 'lows': lows}
             
         except Exception as e:
             logger.error(f"Error identifying pivot points: {e}")
             return {'highs': [], 'lows': []}
+
+    def _get_candle_pattern(self, df: pd.DataFrame) -> str:
+        """Identify candlestick patterns for confirmation"""
+        if len(df) < 2: return "none"
+        
+        curr = df.iloc[-1]
+        prev = df.iloc[-2]
+        
+        body = abs(curr['close'] - curr['open'])
+        upper_wick = curr['high'] - max(curr['open'], curr['close'])
+        lower_wick = min(curr['open'], curr['close']) - curr['low']
+        
+        # Bullish Hammer
+        if lower_wick > body * 2 and upper_wick < body:
+            return "bullish_hammer"
+            
+        # Bearish Shooting Star
+        if upper_wick > body * 2 and lower_wick < body:
+            return "bearish_shooting_star"
+            
+        # Bullish Engulfing
+        if curr['close'] > prev['open'] and curr['open'] < prev['close'] and prev['close'] < prev['open']:
+            return "bullish_engulfing"
+            
+        # Bearish Engulfing
+        if curr['close'] < prev['open'] and curr['open'] > prev['close'] and prev['close'] > prev['open']:
+            return "bearish_engulfing"
+            
+        return "none"
     
     def find_support_resistance_levels(self, df: pd.DataFrame, symbol: str) -> Dict[str, List[Dict]]:
         """
@@ -535,87 +547,108 @@ class SupportResistanceRobot:
             return 'HOLD'
     
     def _check_bounce_from_support(self, df: pd.DataFrame, support_level: float) -> bool:
-        """Check if price is bouncing from support level"""
+        """Check if price is bouncing from support level with candlestick confirmation"""
         try:
-            if len(df) < self.bounce_confirmation_bars + 1:
+            if len(df) < 2:
                 return False
             
-            recent_bars = df.tail(self.bounce_confirmation_bars + 1)
+            last_bar = df.iloc[-1]
+            pattern = self._get_candle_pattern(df)
             
-            # Check if price touched or went below support and then bounced back
-            touched_support = False
-            bounced_up = False
+            # Check if price touched support zone recently
+            touched_support = any(df.tail(3)['low'] <= support_level + self.min_distance_from_sr)
             
-            for i, row in recent_bars.iterrows():
-                # Check if low touched or broke support
-                if row['low'] <= support_level + self.min_distance_from_sr:
-                    touched_support = True
+            # Reversal confirmation
+            is_bullish_reversal = pattern in ["bullish_hammer", "bullish_engulfing"]
+            is_standard_bounce = last_bar['close'] > last_bar['open'] and last_bar['close'] > support_level
+            
+            if touched_support and (is_bullish_reversal or is_standard_bounce):
+                if is_bullish_reversal:
+                    logger.info(f"✨ Bullish Pattern confirmed: {pattern}")
+                return True
                 
-                # Check if close is now above support (bounce)
-                if touched_support and row['close'] > support_level + self.min_distance_from_sr:
-                    bounced_up = True
-            
-            # Additional confirmation: recent bar should be bullish
-            last_bar = recent_bars.iloc[-1]
-            is_bullish_bar = last_bar['close'] > last_bar['open']
-            
-            return touched_support and bounced_up and is_bullish_bar
+            return False
             
         except Exception as e:
             logger.error(f"Error checking support bounce: {e}")
             return False
     
     def _check_rejection_from_resistance(self, df: pd.DataFrame, resistance_level: float) -> bool:
-        """Check if price is rejecting from resistance level"""
+        """Check if price is rejecting from resistance level with candlestick confirmation"""
         try:
-            if len(df) < self.bounce_confirmation_bars + 1:
+            if len(df) < 2:
                 return False
             
-            recent_bars = df.tail(self.bounce_confirmation_bars + 1)
+            last_bar = df.iloc[-1]
+            pattern = self._get_candle_pattern(df)
             
-            # Check if price touched or went above resistance and then rejected
-            touched_resistance = False
-            rejected_down = False
+            # Check if price touched resistance zone recently
+            touched_resistance = any(df.tail(3)['high'] >= resistance_level - self.min_distance_from_sr)
             
-            for i, row in recent_bars.iterrows():
-                # Check if high touched or broke resistance
-                if row['high'] >= resistance_level - self.min_distance_from_sr:
-                    touched_resistance = True
+            # Reversal confirmation
+            is_bearish_reversal = pattern in ["bearish_shooting_star", "bearish_engulfing"]
+            is_standard_rejection = last_bar['close'] < last_bar['open'] and last_bar['close'] < resistance_level
+            
+            if touched_resistance and (is_bearish_reversal or is_standard_rejection):
+                if is_bearish_reversal:
+                    logger.info(f"✨ Bearish Pattern confirmed: {pattern}")
+                return True
                 
-                # Check if close is now below resistance (rejection)
-                if touched_resistance and row['close'] < resistance_level - self.min_distance_from_sr:
-                    rejected_down = True
-            
-            # Additional confirmation: recent bar should be bearish
-            last_bar = recent_bars.iloc[-1]
-            is_bearish_bar = last_bar['close'] < last_bar['open']
-            
-            return touched_resistance and rejected_down and is_bearish_bar
+            return False
             
         except Exception as e:
             logger.error(f"Error checking resistance rejection: {e}")
             return False
     
+    def calculate_atr(self, df: pd.DataFrame, period: int = 14) -> pd.Series:
+        """Calculate Average True Range"""
+        high = df['high']
+        low = df['low']
+        close = df['close']
+        
+        tr1 = high - low
+        tr2 = abs(high - close.shift())
+        tr3 = abs(low - close.shift())
+        tr = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
+        atr = tr.rolling(window=period).mean()
+        return atr
+
     def calculate_sr_based_stops(self, symbol: str, entry_price: float, 
                                 signal: str, sr_level: float) -> Tuple[float, float]:
-        """Calculate stop loss and take profit based on S/R levels"""
+        """Calculate stop loss and take profit based on S/R levels and ATR"""
         try:
             symbol_info = mt5.symbol_info(symbol)
+            if not symbol_info:
+                return entry_price, entry_price
+                
             pip_value = symbol_info.point * 10
             
+            # Get ATR for dynamic buffer
+            df = self.get_market_data(symbol, self.timeframe, 100)
+            if df is not None:
+                df['atr'] = self.calculate_atr(df)
+                atr = df['atr'].iloc[-1]
+            else:
+                atr = self.stop_loss_pips * pip_value / 2 # Fallback
+            
+            # Dynamic buffer (0.5 * ATR)
+            buffer = max(atr * 0.5, 2 * symbol_info.point * 10) 
+            
             if signal == 'BUY':
-                # Stop loss below the support level
-                stop_loss = sr_level - (self.stop_loss_pips * pip_value)
-                # Take profit based on risk:reward ratio
-                risk_pips = abs(entry_price - stop_loss) / pip_value
-                take_profit = entry_price + (risk_pips * self.take_profit_ratio * pip_value)
+                # Stop loss below support minus buffer
+                stop_loss = min(sr_level, entry_price) - buffer
+                
+                # Risk calculation
+                risk_amount = entry_price - stop_loss
+                take_profit = entry_price + (risk_amount * self.take_profit_ratio)
                 
             else: # SELL
-                # Stop loss above the resistance level
-                stop_loss = sr_level + (self.stop_loss_pips * pip_value)
-                # Take profit based on risk:reward ratio
-                risk_pips = abs(stop_loss - entry_price) / pip_value
-                take_profit = entry_price - (risk_pips * self.take_profit_ratio * pip_value)
+                # Stop loss above resistance plus buffer
+                stop_loss = max(sr_level, entry_price) + buffer
+                
+                # Risk calculation
+                risk_amount = stop_loss - entry_price
+                take_profit = entry_price - (risk_amount * self.take_profit_ratio)
             
             return stop_loss, take_profit
             
