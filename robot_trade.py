@@ -2,22 +2,72 @@ import MetaTrader5 as mt5
 import pandas as pd
 import numpy as np
 import time
+import logging
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
-import logging
 import requests
 import urllib3
+from robot_runtime import configure_logging, load_env_file, parse_bool_env, parse_csv_env, parse_float_env, parse_int_env, parse_str_env
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-# Set up logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+@dataclass
+class TelegramConfig:
+    bot_token: Optional[str] = None
+    chat_id: Optional[str] = None
+
+
+@dataclass
+class BotRuntimeConfig:
+    risk_per_trade: float = 0.001
+    magic_number: int = 19910
+    max_drawdown_percent: float = 25.0
+    drawdown_period_hours: int = 4
+    run_duration_minutes: int = 60
+    report_period_hours: int = 4
+    symbols: List[str] = None
+    log_level: str = "INFO"
+    log_file: str = "logs/robot_trade.jsonl"
+    timeframe: int = mt5.TIMEFRAME_M1
+    trend_timeframe: int = mt5.TIMEFRAME_M5
+    enable_jpy_tuning: bool = True
+
+    def __post_init__(self):
+        if self.symbols is None:
+            self.symbols = ["XAUUSD", "EURUSD"]
+
+def load_runtime_config() -> BotRuntimeConfig:
+    load_env_file()
+    return BotRuntimeConfig(
+        risk_per_trade=parse_float_env("MT5_RISK_PER_TRADE", 0.001),
+        magic_number=parse_int_env("MT5_MAGIC_NUMBER", 19910),
+        max_drawdown_percent=parse_float_env("MT5_MAX_DRAWDOWN_PERCENT", 25.0),
+        drawdown_period_hours=parse_int_env("MT5_DRAWDOWN_PERIOD_HOURS", 4),
+        run_duration_minutes=parse_int_env("MT5_RUN_DURATION_MINUTES", 60),
+        report_period_hours=parse_int_env("MT5_REPORT_PERIOD_HOURS", 4),
+        symbols=[symbol.upper() for symbol in parse_csv_env(parse_str_env("MT5_SYMBOLS", ""), ["XAUUSD", "EURUSD"])],
+        log_level=parse_str_env("ROBOT_LOG_LEVEL", "INFO"),
+        log_file=parse_str_env("ROBOT_LOG_FILE", "logs/robot_trade.jsonl"),
+        enable_jpy_tuning=parse_bool_env(parse_str_env("MT5_ENABLE_JPY_TUNING", None), True),
+    )
+
+
+def load_telegram_config() -> TelegramConfig:
+    return TelegramConfig(
+        bot_token=parse_str_env("TELEGRAM_BOT_TOKEN", ""),
+        chat_id=parse_str_env("TELEGRAM_CHAT_ID", ""),
+    )
+
+
 logger = logging.getLogger(__name__)
 
 class MT5ForexRobot:
     def __init__(self, risk_per_trade: float = 0.01, magic_number: int = 12345,
                  max_drawdown_percent: float = 25.0, drawdown_period_hours: int = 24,
-                 timeframe: int = mt5.TIMEFRAME_M5, trend_timeframe: int = mt5.TIMEFRAME_M30,
-                 enable_jpy_tuning: bool = True):
+                 timeframe: int = mt5.TIMEFRAME_M1, trend_timeframe: int = mt5.TIMEFRAME_M15,
+                 enable_jpy_tuning: bool = True, report_period_hours: int = 4,
+                 telegram_config: Optional[TelegramConfig] = None):
         """
         Initialize the MT5 Forex Trading Robot
         
@@ -29,12 +79,16 @@ class MT5ForexRobot:
             timeframe: Current chart timeframe for entries (M5, M15, M30)
             trend_timeframe: Higher timeframe for trend filtering (M30, H1)
             enable_jpy_tuning: Enable/disable JPY pair profile adjustments
+            report_period_hours: Default lookback window for trade reports
+            telegram_config: Telegram delivery settings loaded from environment
         """
         self.risk_per_trade = risk_per_trade
         self.magic_number = magic_number
         self.is_running = False
         self.timeframe = timeframe
         self.trend_timeframe = trend_timeframe
+        self.report_period_hours = report_period_hours
+        self.telegram_config = telegram_config or TelegramConfig()
         
         # Trading parameters
         self.sma_short = 7   # Slightly slower to reduce noise
@@ -1012,11 +1066,12 @@ class MT5ForexRobot:
             logger.error(f"Error getting statistics: {e}")
             return {"error": str(e)}
 
-    def get_trading_cycle(self) -> Dict:
+    def get_trading_cycle(self, report_period_hours: Optional[int] = None) -> Dict:
         """Get trading statistics each cycle for reporting"""
         try:
             end_time = datetime.now()
-            start_time = end_time - timedelta(hours=4)
+            period_hours = report_period_hours or self.report_period_hours
+            start_time = end_time - timedelta(hours=period_hours)
             deals = mt5.history_deals_get(start_time, end_time)
 
             if not deals:
@@ -1065,7 +1120,7 @@ class MT5ForexRobot:
                 })
 
             if not closed_positions:
-                return {"message": "No closed trades found for this robot in the last 4 hours"}
+                return {"message": f"No closed trades found for this robot in the last {period_hours} hours"}
 
             total_profit = sum(position["net_profit"] for position in closed_positions)
             total_trades = len(closed_positions)
@@ -1080,6 +1135,7 @@ class MT5ForexRobot:
 
             return {
                 "Period": f"{start_time.strftime('%Y-%m-%d %H:%M:%S')} -> {end_time.strftime('%Y-%m-%d %H:%M:%S')}",
+                "Report Period Hours": period_hours,
                 "Total Trades": total_trades,
                 "Winning Trades": winning_trades,
                 "Losing Trades": losing_trades,
@@ -1097,8 +1153,12 @@ class MT5ForexRobot:
             return {"error": str(e)}
 
     def send_telegram_report(self, stats: dict):
-        bot_token = "8283118826:AAFOazKqekUIpXZR2sg09Sk1O6X15RM_wCY"  # bot token
-        chat_id = "911796580"  # chat id
+        bot_token = self.telegram_config.bot_token
+        chat_id = self.telegram_config.chat_id
+
+        if not bot_token or not chat_id:
+            logger.warning("Telegram report skipped because TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID is not configured")
+            return
 
         # Format the stats dictionary into a readable string
         stats_text = "\n".join([f"{key}: {value}" for key, value in stats.items()])
@@ -1148,34 +1208,49 @@ class MT5ForexRobot:
         mt5.shutdown()
         logger.info("MT5 connection closed")
 
-# Example usage
-if __name__ == "__main__":
-    # Create the robot with drawdown protection
-    robot = MT5ForexRobot(
-        risk_per_trade=0.001,           # 2% risk per trade
-        magic_number=19910,            # Unique robot ID
-        max_drawdown_percent=25.0,     # Stop trading if 25% drawdown
-        drawdown_period_hours=4       # Monitor drawdown over 24 hours
+def create_robot(config: BotRuntimeConfig) -> MT5ForexRobot:
+    return MT5ForexRobot(
+        risk_per_trade=config.risk_per_trade,
+        magic_number=config.magic_number,
+        max_drawdown_percent=config.max_drawdown_percent,
+        drawdown_period_hours=config.drawdown_period_hours,
+        timeframe=config.timeframe,
+        trend_timeframe=config.trend_timeframe,
+        enable_jpy_tuning=config.enable_jpy_tuning,
+        report_period_hours=config.report_period_hours,
+        telegram_config=load_telegram_config(),
     )
-    
-    # Define symbols to trade (make sure these are available in your MT5)
-    symbols = ['XAUUSD','EURUSD']
-    
+
+
+def print_report(stats: Dict[str, Any]) -> None:
+    print("\n=== TRADING ROBOT STATISTICS ===")
+    for key, value in stats.items():
+        print(f"{key}: {value}")
+
+
+def main() -> None:
+    config = load_runtime_config()
+    configure_logging(config.log_level, config.log_file)
+    logger.info(
+        "Starting trading bot with config: symbols=%s run_duration_minutes=%s report_period_hours=%s",
+        config.symbols,
+        config.run_duration_minutes,
+        config.report_period_hours,
+    )
+
+    robot = create_robot(config)
+
     try:
-        # Run the trading bot for 30 minutes (adjust as needed)
-        robot.run_trading_bot(symbols, run_duration_minutes=360)
-        
-        # Get and display statistics
-        stats = robot.get_trading_cycle()
-        print("\n=== TRADING ROBOT STATISTICS ===")
-        for key, value in stats.items():
-            print(f"{key}: {value}")
-        
+        robot.run_trading_bot(config.symbols, run_duration_minutes=config.run_duration_minutes)
+        stats = robot.get_trading_cycle(report_period_hours=config.report_period_hours)
+        print_report(stats)
         robot.send_telegram_report(stats)
-            
     except Exception as e:
         logger.error(f"Main execution error: {e}")
     finally:
-        # Always shutdown properly
-        robot.shutdown() 
+        robot.shutdown()
+
+
+if __name__ == "__main__":
+    main()
 

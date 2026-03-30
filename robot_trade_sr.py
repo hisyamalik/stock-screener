@@ -2,14 +2,55 @@ import MetaTrader5 as mt5
 import pandas as pd
 import numpy as np
 import time
+import os
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Tuple
 import logging
 from enum import Enum
+from robot_runtime import configure_logging, load_env_file, parse_bool_env, parse_csv_env, parse_float_env, parse_int_env, parse_str_env
 
-# Set up logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class SupportResistanceRuntimeConfig:
+    strategy: str = "SUPPORT_RESISTANCE_SCALP_1M"
+    run_duration_minutes: int = 480
+    report_period_days: int = 30
+    show_levels: bool = True
+    log_level: str = "INFO"
+    log_file: str = "logs/robot_trade_sr.jsonl"
+    enable_multi_timeframe_scalping: bool = True
+    confirmation_timeframe: int = mt5.TIMEFRAME_M5
+    trend_timeframe: int = mt5.TIMEFRAME_M15
+    symbols_override: List[str] = None
+
+    def __post_init__(self):
+        if self.symbols_override is None:
+            self.symbols_override = []
+
+
+def _resolve_strategy(strategy_name: str) -> "TradingStrategy":
+    try:
+        return TradingStrategy[strategy_name]
+    except KeyError:
+        logger.warning(f"Unknown strategy '{strategy_name}', defaulting to SUPPORT_RESISTANCE_SCALP_1M")
+        return TradingStrategy.SUPPORT_RESISTANCE_SCALP_1M
+
+
+def load_sr_runtime_config() -> SupportResistanceRuntimeConfig:
+    load_env_file()
+    return SupportResistanceRuntimeConfig(
+        strategy=parse_str_env("SR_STRATEGY", "SUPPORT_RESISTANCE_SCALP_1M"),
+        run_duration_minutes=parse_int_env("SR_RUN_DURATION_MINUTES", 480),
+        report_period_days=parse_int_env("SR_REPORT_PERIOD_DAYS", 30),
+        show_levels=parse_bool_env(os.getenv("SR_SHOW_LEVELS"), True),
+        log_level=parse_str_env("SR_LOG_LEVEL", "INFO"),
+        log_file=parse_str_env("SR_LOG_FILE", "logs/robot_trade_sr.jsonl"),
+        enable_multi_timeframe_scalping=parse_bool_env(os.getenv("SR_ENABLE_MULTI_TIMEFRAME_SCALPING"), True),
+        symbols_override=parse_csv_env(os.getenv("SR_SYMBOLS"), []),
+    )
 
 class TradingStrategy(Enum):
     """Available trading strategies"""
@@ -1187,12 +1228,12 @@ class SupportResistanceRobot:
             self.is_running = False
             logger.info(f"Support & Resistance trading session completed ({cycle_count} cycles)")
     
-    def get_trading_statistics(self) -> Dict:
+    def get_trading_statistics(self, report_period_days: int = 30) -> Dict:
         """Get comprehensive trading statistics"""
         try:
             # Get deals history
             deals = mt5.history_deals_get(
-                datetime.now() - timedelta(days=30),
+                datetime.now() - timedelta(days=report_period_days),
                 datetime.now()
             )
             
@@ -1237,7 +1278,8 @@ class SupportResistanceRobot:
                 "average_loss": round(avg_loss, 2),
                 "profit_factor": round(profit_factor, 2),
                 "current_balance": round(current_balance, 2),
-                "magic_number": self.magic_number
+                "magic_number": self.magic_number,
+                "report_period_days": report_period_days,
             }
             
         except Exception as e:
@@ -1248,34 +1290,51 @@ class SupportResistanceRobot:
         """Shutdown robot and MT5 connection"""
         self.is_running = False
         mt5.shutdown()
-        logger.info("🔌 MT5 connection closed - Robot shutdown complete")
+        logger.info("MT5 connection closed - robot shutdown complete")
 
-# Example usage and configuration showcase
-if __name__ == "__main__":
-    
-    # Example of running with statistics
-    scalp_robot = SupportResistanceRobot(
-        TradingStrategy.SUPPORT_RESISTANCE_SCALP_1M,
-        custom_config={
-            "enable_multi_timeframe_scalping": True,
-            "confirmation_timeframe": mt5.TIMEFRAME_M5,
-            "trend_timeframe": mt5.TIMEFRAME_M15,
-        }
+
+def create_sr_robot(config: SupportResistanceRuntimeConfig) -> SupportResistanceRobot:
+    custom_config: Dict[str, Any] = {
+        "enable_multi_timeframe_scalping": config.enable_multi_timeframe_scalping,
+    }
+    if config.symbols_override:
+        custom_config["symbols"] = [symbol.upper() for symbol in config.symbols_override]
+
+    return SupportResistanceRobot(
+        _resolve_strategy(config.strategy),
+        custom_config=custom_config,
     )
+
+
+def print_sr_statistics(stats: Dict[str, Any]) -> None:
+    print("\n=== SUPPORT / RESISTANCE TRADING STATISTICS ===")
+    for key, value in stats.items():
+        print(f"{key}: {value}")
+
+
+def main() -> None:
+    config = load_sr_runtime_config()
+    configure_logging(config.log_level, config.log_file)
+    logger.info(
+        "Starting S/R robot with config: strategy=%s duration=%s report_period_days=%s",
+        config.strategy,
+        config.run_duration_minutes,
+        config.report_period_days,
+    )
+
+    robot = create_sr_robot(config)
     try:
-        # Run trading session
-        scalp_robot.run_sr_trading_session(duration_minutes=480, show_levels=True)
-        
-        # Get and display statistics
-        stats = scalp_robot.get_trading_statistics()
-        print("\n📊 TRADING STATISTICS:")
-        for key, value in stats.items():
-            print(f"{key}: {value}")
-            
+        robot.run_sr_trading_session(
+            duration_minutes=config.run_duration_minutes,
+            show_levels=config.show_levels,
+        )
+        stats = robot.get_trading_statistics(report_period_days=config.report_period_days)
+        print_sr_statistics(stats)
     except Exception as e:
-        logger.error(f"Example execution error: {e}")
+        logger.error(f"S/R robot execution error: {e}")
     finally:
-        scalp_robot.shutdown()
+        robot.shutdown()
 
-    
 
+if __name__ == "__main__":
+    main()

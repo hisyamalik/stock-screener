@@ -8,19 +8,42 @@ import numpy as np
 from datetime import datetime, timedelta, timezone
 import time
 import logging
+import os
+from dataclasses import dataclass
 from typing import Dict, List, Tuple, Optional
 import threading
 import json
+from robot_runtime import MT5Credentials, configure_logging, load_env_file, load_mt5_credentials, parse_float_env, parse_int_env, parse_str_env
 
-# Setup logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('crt_po3_trading.log'),
-        logging.StreamHandler()
-    ]
-)
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class CRTBotRuntimeConfig:
+    symbol: str = "EURUSD"
+    timeframe: str = "H1"
+    magic_number: int = 234567
+    risk_percent: float = 2.0
+    max_spread: int = 20
+    analysis_interval: int = 300
+    stats_period_days: int = 30
+    log_level: str = "INFO"
+    log_file: str = "logs/robot_crt_po3.jsonl"
+
+
+def load_crt_runtime_config() -> CRTBotRuntimeConfig:
+    load_env_file()
+    return CRTBotRuntimeConfig(
+        symbol=parse_str_env("CRT_SYMBOL", "EURUSD"),
+        timeframe=parse_str_env("CRT_TIMEFRAME", "H1").upper(),
+        magic_number=parse_int_env("CRT_MAGIC_NUMBER", 234567),
+        risk_percent=parse_float_env("CRT_RISK_PERCENT", 2.0),
+        max_spread=parse_int_env("CRT_MAX_SPREAD", 20),
+        analysis_interval=parse_int_env("CRT_ANALYSIS_INTERVAL_SECONDS", 300),
+        stats_period_days=parse_int_env("CRT_REPORT_PERIOD_DAYS", 30),
+        log_level=parse_str_env("CRT_LOG_LEVEL", "INFO"),
+        log_file=parse_str_env("CRT_LOG_FILE", "logs/robot_crt_po3.jsonl"),
+    )
 
 class MT5_CRT_PowerOfThree:
     """Complete MT5 CRT Power of 3 Trading System with Adjustable Timeframes"""
@@ -777,11 +800,11 @@ class MT5_CRT_PowerOfThree:
             logging.error(f"Error checking market hours: {e}")
             return True  # Default to open
     
-    def get_trading_stats(self) -> Dict:
+    def get_trading_stats(self, period_days: int = 30) -> Dict:
         """Get trading statistics"""
         try:
             # Get closed trades
-            from_date = datetime.now() - timedelta(days=30)
+            from_date = datetime.now() - timedelta(days=period_days)
             
             deals = mt5.history_deals_get(from_date, datetime.now())
             if deals is None:
@@ -804,7 +827,8 @@ class MT5_CRT_PowerOfThree:
                 'win_rate': (winning_trades / total_trades * 100) if total_trades > 0 else 0,
                 'total_profit': total_profit,
                 'open_positions': len(self.get_open_positions()),
-                'timeframe': self.timeframe_str
+                'timeframe': self.timeframe_str,
+                'report_period_days': period_days,
             }
             
             return stats
@@ -1000,145 +1024,111 @@ def display_timeframe_menu():
     return timeframes
 
 
+def create_crt_trader(credentials: MT5Credentials, config: CRTBotRuntimeConfig) -> MT5_CRT_PowerOfThree:
+    trader = MT5_CRT_PowerOfThree(
+        login=credentials.login,
+        password=credentials.password,
+        server=credentials.server,
+        symbol=config.symbol,
+        timeframe=config.timeframe,
+        magic_number=config.magic_number
+    )
+    trader.risk_percent = config.risk_percent
+    trader.max_spread = config.max_spread
+    return trader
+
+
+def print_stats(stats: Dict) -> None:
+    for key, value in stats.items():
+        if key == 'total_profit':
+            print(f"{key.replace('_', ' ').title()}: ${value:.2f}")
+        elif key == 'win_rate':
+            print(f"{key.replace('_', ' ').title()}: {value:.1f}%")
+        else:
+            print(f"{key.replace('_', ' ').title()}: {value}")
+
+
+def ensure_credentials(credentials: MT5Credentials) -> bool:
+    if credentials.is_complete():
+        return True
+    print('Missing MT5 credentials. Please set MT5_LOGIN, MT5_PASSWORD, and MT5_SERVER in your .env file.')
+    logger.error('Missing MT5 credentials in environment')
+    return False
+
+
 def main():
     """Main function to run the CRT Po3 trading system"""
-    
-    # MT5 Account Configuration - REPLACE WITH YOUR ACTUAL CREDENTIALS
-    MT5_CONFIG = {
-        'login': 123456789,           # Your MT5 account number
-        'password': 'your_password',  # Your MT5 password  
-        'server': 'YourBroker-Demo'   # Your broker's server name
-    }
-    
-    # Trading Configuration
-    TRADING_CONFIG = {
-        'symbol': 'EURUSD',
-        'timeframe': 'H1',  # Easy to change: M1, M5, M15, M30, H1, H4, D1
-        'magic_number': 234567,
-        'risk_percent': 2.0,
-        'max_spread': 20,
-        'analysis_interval': 300  # 5 minutes
-    }
-    
+    config = load_crt_runtime_config()
+    credentials = load_mt5_credentials()
+    configure_logging(config.log_level, config.log_file)
+
+    if not ensure_credentials(credentials):
+        return
+
     print("=== CRT Power of 3 Trading System ===")
     print("1. Start Automated Trading")
-    print("2. Manual Analysis Only") 
+    print("2. Manual Analysis Only")
     print("3. View Trading Statistics")
     print("4. Change Timeframe")
     print("5. Multi-Timeframe Analysis")
     print("6. View Timeframe Info")
     print("7. Quick Timeframe Test")
     print("8. Exit")
-    
+
     choice = input("\nSelect option (1-8): ").strip()
-    
+
     try:
         if choice == '1':
-            # Start automated trading
-            trader = MT5_CRT_PowerOfThree(
-                login=MT5_CONFIG['login'],
-                password=MT5_CONFIG['password'],
-                server=MT5_CONFIG['server'],
-                symbol=TRADING_CONFIG['symbol'],
-                timeframe=TRADING_CONFIG['timeframe'],
-                magic_number=TRADING_CONFIG['magic_number']
-            )
-            
-            # Set trading parameters
-            trader.risk_percent = TRADING_CONFIG['risk_percent']
-            trader.max_spread = TRADING_CONFIG['max_spread']
-            
+            trader = create_crt_trader(credentials, config)
             print(f"\nStarting automated trading on {trader.timeframe_str} timeframe...")
-            trader.start_trading(TRADING_CONFIG['analysis_interval'])
-            
+            trader.start_trading(config.analysis_interval)
+
             print("Automated trading started. Press Ctrl+C to stop...")
             try:
                 while True:
                     time.sleep(60)
-                    # Print periodic status
-                    stats = trader.get_trading_stats()
+                    stats = trader.get_trading_stats(period_days=config.stats_period_days)
                     current_time = datetime.now().strftime('%H:%M:%S')
                     open_pos = stats.get('open_positions', 0)
                     print(f"Status: {current_time} - Open Positions: {open_pos} - TF: {trader.timeframe_str}")
-                    
             except KeyboardInterrupt:
                 print("\nStopping trading...")
                 trader.stop_trading()
                 trader.disconnect_mt5()
-                
+
         elif choice == '2':
-            # Manual analysis
-            trader = MT5_CRT_PowerOfThree(
-                login=MT5_CONFIG['login'],
-                password=MT5_CONFIG['password'],
-                server=MT5_CONFIG['server'],
-                symbol=TRADING_CONFIG['symbol'],
-                timeframe=TRADING_CONFIG['timeframe'],
-                magic_number=TRADING_CONFIG['magic_number']
-            )
-            
+            trader = create_crt_trader(credentials, config)
             print(f"Running manual analysis on {trader.timeframe_str}...")
             trader.analyze_and_trade()
-            
-            # Get recent data for display
+
             df = trader.get_historical_data(100)
             analyzed_df = trader.detect_crt_signals(df)
-            
+
             print(f"\n=== Recent Signals on {trader.timeframe_str} ===")
             recent_signals = analyzed_df[analyzed_df['crt_signal'].notna()].tail(5)
-            
+
             if len(recent_signals) > 0:
                 for idx, row in recent_signals.iterrows():
                     print(f"{idx}: {row['crt_signal']} - Strength: {row['signal_strength']} - Price: {row['close']:.5f}")
             else:
                 print("No recent signals found")
-                
+
             trader.disconnect_mt5()
-                
+
         elif choice == '3':
-            # Show statistics
-            trader = MT5_CRT_PowerOfThree(
-                login=MT5_CONFIG['login'],
-                password=MT5_CONFIG['password'],
-                server=MT5_CONFIG['server'],
-                symbol=TRADING_CONFIG['symbol'],
-                timeframe=TRADING_CONFIG['timeframe'],
-                magic_number=TRADING_CONFIG['magic_number']
-            )
-            
-            stats = trader.get_trading_stats()
-            print(f"\n=== Trading Statistics (Last 30 days) - {stats.get('timeframe', 'N/A')} ===")
-            
-            for key, value in stats.items():
-                if key in ['total_profit']:
-                    print(f"{key.replace('_', ' ').title()}: ${value:.2f}")
-                elif key in ['win_rate']:
-                    print(f"{key.replace('_', ' ').title()}: {value:.1f}%")
-                else:
-                    print(f"{key.replace('_', ' ').title()}: {value}")
-                    
+            trader = create_crt_trader(credentials, config)
+            stats = trader.get_trading_stats(period_days=config.stats_period_days)
+            print(f"\n=== Trading Statistics (Last {config.stats_period_days} days) - {stats.get('timeframe', 'N/A')} ===")
+            print_stats(stats)
             trader.disconnect_mt5()
-                    
+
         elif choice == '4':
-            # Change timeframe
-            trader = MT5_CRT_PowerOfThree(
-                login=MT5_CONFIG['login'],
-                password=MT5_CONFIG['password'],
-                server=MT5_CONFIG['server'],
-                symbol=TRADING_CONFIG['symbol'],
-                timeframe=TRADING_CONFIG['timeframe'],
-                magic_number=TRADING_CONFIG['magic_number']
-            )
-            
+            trader = create_crt_trader(credentials, config)
             print(f"\nCurrent timeframe: {trader.timeframe_str}")
-            
-            # Show available timeframes with numbers
             timeframe_options = display_timeframe_menu()
-            
+
             try:
                 selection = input("\nEnter timeframe number or code (e.g., 5 or H1): ").strip()
-                
-                # Check if it's a number (selection from menu)
                 if selection.isdigit():
                     selection_num = int(selection)
                     if selection_num in timeframe_options:
@@ -1148,59 +1138,49 @@ def main():
                         trader.disconnect_mt5()
                         return
                 else:
-                    # Direct timeframe code entry
                     new_tf = selection.upper()
-                
+
                 if trader.set_timeframe(new_tf):
-                    print(f"✓ Timeframe changed to {new_tf}")
-                    TRADING_CONFIG['timeframe'] = new_tf  # Update config
-                    
-                    # Show new configuration
-                    config = trader.get_timeframe_info()
-                    print(f"New settings: SL={config['atr_multiplier_sl']}x ATR, TP={config['atr_multiplier_tp']}x ATR")
+                    print(f"Timeframe changed to {new_tf}")
+                    config.timeframe = new_tf
+                    timeframe_info = trader.get_timeframe_info()
+                    print(f"New settings: SL={timeframe_info['atr_multiplier_sl']}x ATR, TP={timeframe_info['atr_multiplier_tp']}x ATR")
                 else:
-                    print("✗ Failed to change timeframe")
-                    
+                    print("Failed to change timeframe")
             except ValueError:
                 print("Invalid input")
-                
+
             trader.disconnect_mt5()
-            
+
         elif choice == '5':
-            # Multi-timeframe analysis
             print("\n=== Multi-Timeframe Analysis ===")
-            
-            timeframes = ['M15', 'H1', 'H4']  # Analyze multiple timeframes
-            
+            timeframes = ['M15', 'H1', 'H4']
             analyzer = MultiTimeframeAnalyzer(
-                MT5_CONFIG['login'],
-                MT5_CONFIG['password'], 
-                MT5_CONFIG['server']
+                credentials.login,
+                credentials.password,
+                credentials.server
             )
-            
-            analyzer.initialize_timeframes(TRADING_CONFIG['symbol'], timeframes)
-            
+
+            analyzer.initialize_timeframes(config.symbol, timeframes)
+
             if analyzer.traders:
                 results = analyzer.analyze_all_timeframes()
-                
+
                 if not results.empty:
-                    print(f"\n=== Analysis Results for {TRADING_CONFIG['symbol']} ===")
-                    
+                    print(f"\n=== Analysis Results for {config.symbol} ===")
                     for _, row in results.iterrows():
                         tf = row['timeframe']
                         signal = row['signal']
                         strength = row['signal_strength']
                         trend = row['trend']
                         phase = row['po3_phase']
-                        
+
                         status = f"{tf}: {signal}"
                         if signal != 'NONE':
                             status += f" (Strength: {strength})"
                         status += f" | Trend: {trend} | Phase: {phase}"
-                        
                         print(status)
-                    
-                    # Get consensus
+
                     consensus = analyzer.get_consensus_signal(results)
                     print(f"\n=== CONSENSUS ===")
                     print(f"Signal: {consensus['consensus']}")
@@ -1211,20 +1191,11 @@ def main():
                     print("No analysis results available")
             else:
                 print("No timeframes successfully initialized")
-                
+
             analyzer.cleanup()
-                
+
         elif choice == '6':
-            # View timeframe info
-            trader = MT5_CRT_PowerOfThree(
-                login=MT5_CONFIG['login'],
-                password=MT5_CONFIG['password'],
-                server=MT5_CONFIG['server'],
-                symbol=TRADING_CONFIG['symbol'],
-                timeframe=TRADING_CONFIG['timeframe'],
-                magic_number=TRADING_CONFIG['magic_number']
-            )
-            
+            trader = create_crt_trader(credentials, config)
             info = trader.get_timeframe_info()
             print(f"\n=== Timeframe Configuration ===")
             print(f"Current Timeframe: {info['current_timeframe']}")
@@ -1235,30 +1206,27 @@ def main():
             print(f"Trailing Distance: {info['trailing_distance']} points")
             print(f"Min Profit for Trail: {info['min_profit_for_trail']} points")
             print(f"\nAvailable Timeframes: {', '.join(info['available_timeframes'])}")
-            
             trader.disconnect_mt5()
-            
+
         elif choice == '7':
-            # Quick timeframe test
             print("Running quick analysis on multiple timeframes...")
             quick_analysis_example(
-                MT5_CONFIG['login'],
-                MT5_CONFIG['password'],
-                MT5_CONFIG['server']
+                credentials.login,
+                credentials.password,
+                credentials.server
             )
-            
+
         elif choice == '8':
             print("Exiting...")
         else:
             print("Invalid option selected")
-            
+
     except Exception as e:
         print(f"Error: {e}")
-        logging.error(f"Main function error: {e}")
+        logger.error(f"Main function error: {e}")
 
 
 if __name__ == "__main__":
     print("CRT Power of 3 MT5 Trading System")
-    print("Make sure to update your MT5 credentials in the MT5_CONFIG section!")
     print("=" * 60)
     main()
