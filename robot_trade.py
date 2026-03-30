@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import time
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 import logging
 import requests
 import urllib3
@@ -16,7 +16,8 @@ logger = logging.getLogger(__name__)
 class MT5ForexRobot:
     def __init__(self, risk_per_trade: float = 0.01, magic_number: int = 12345,
                  max_drawdown_percent: float = 25.0, drawdown_period_hours: int = 24,
-                 timeframe: int = mt5.TIMEFRAME_M5, trend_timeframe: int = mt5.TIMEFRAME_M30):
+                 timeframe: int = mt5.TIMEFRAME_M5, trend_timeframe: int = mt5.TIMEFRAME_M30,
+                 enable_jpy_tuning: bool = True):
         """
         Initialize the MT5 Forex Trading Robot
         
@@ -27,6 +28,7 @@ class MT5ForexRobot:
             drawdown_period_hours: Period in hours to monitor drawdown
             timeframe: Current chart timeframe for entries (M5, M15, M30)
             trend_timeframe: Higher timeframe for trend filtering (M30, H1)
+            enable_jpy_tuning: Enable/disable JPY pair profile adjustments
         """
         self.risk_per_trade = risk_per_trade
         self.magic_number = magic_number
@@ -45,6 +47,13 @@ class MT5ForexRobot:
         self.rsi_readysold = 35 # More conservative for sell entries
         self.rsi_oversold = 20
         self.atr_period = 14
+        self.htf_fast_ma = 50
+        self.htf_slow_ma = 200
+        self.min_rr_ratio = 1.5
+        self.sl_atr_multiplier = 1.2
+        self.tp_rr_multiplier = 2.0
+        self.max_spread_atr_ratio = 0.20
+        self.enable_jpy_tuning = enable_jpy_tuning
         
         # Drawdown protection parameters
         self.max_drawdown_percent = max_drawdown_percent
@@ -312,6 +321,235 @@ class MT5ForexRobot:
         signals[golden_cross] = 1
         signals[death_cross] = -1
         return signals
+
+    def get_signal_profile(self, symbol: str) -> Dict[str, float]:
+        """Return per-symbol thresholds for trend-following behavior."""
+        profile = {
+            "htf_fast_ma": float(self.htf_fast_ma),
+            "htf_slow_ma": float(self.htf_slow_ma),
+            "min_rr_ratio": float(self.min_rr_ratio),
+            "sl_atr_multiplier": float(self.sl_atr_multiplier),
+            "tp_rr_multiplier": float(self.tp_rr_multiplier),
+            "max_spread_atr_ratio": float(self.max_spread_atr_ratio),
+            "trend_strength_min": 0.20,
+            "rsi_buy_min": 45.0,
+            "rsi_buy_max": 68.0,
+            "rsi_sell_min": 32.0,
+            "rsi_sell_max": 55.0,
+        }
+
+        symbol_upper = symbol.upper()
+        if symbol_upper == "XAUUSD":
+            # Gold is noisier and wider-spread; use stricter trend and wider risk buffers.
+            profile.update({
+                "min_rr_ratio": 1.8,
+                "sl_atr_multiplier": 1.6,
+                "tp_rr_multiplier": 2.4,
+                "max_spread_atr_ratio": 0.12,
+                "trend_strength_min": 0.30,
+                "rsi_buy_min": 48.0,
+                "rsi_buy_max": 64.0,
+                "rsi_sell_min": 36.0,
+                "rsi_sell_max": 52.0,
+            })
+        elif symbol_upper == "EURUSD":
+            # EURUSD typically rewards slightly tighter trend thresholds and spread filtering.
+            profile.update({
+                "min_rr_ratio": 1.6,
+                "sl_atr_multiplier": 1.3,
+                "tp_rr_multiplier": 2.2,
+                "max_spread_atr_ratio": 0.08,
+                "trend_strength_min": 0.22,
+                "rsi_buy_min": 46.0,
+                "rsi_buy_max": 66.0,
+                "rsi_sell_min": 34.0,
+                "rsi_sell_max": 54.0,
+            })
+        elif self.enable_jpy_tuning and symbol_upper.endswith("JPY"):
+            profile.update({
+                "sl_atr_multiplier": 1.3,
+                "tp_rr_multiplier": 2.1,
+                "trend_strength_min": 0.24,
+            })
+
+        return profile
+
+    def generate_trend_following_signal(self, symbol: str) -> Dict[str, Any]:
+        """
+        Generate disciplined trend-following signal and risk plan.
+
+        Returns:
+            {
+                "signal": "BUY" | "SELL" | "HOLD",
+                "entry_price": float | None,
+                "stop_loss": float | None,
+                "take_profit": float | None,
+                "rr_ratio": float | None,
+                "reason": str
+            }
+        """
+        hold_result = {
+            "signal": "HOLD",
+            "entry_price": None,
+            "stop_loss": None,
+            "take_profit": None,
+            "rr_ratio": None,
+            "reason": "No valid setup",
+        }
+
+        try:
+            profile = self.get_signal_profile(symbol)
+            symbol_info = mt5.symbol_info(symbol)
+            tick = mt5.symbol_info_tick(symbol)
+            if not symbol_info or not tick:
+                hold_result["reason"] = "Missing symbol info/tick"
+                return hold_result
+
+            htf_fast_ma = int(profile["htf_fast_ma"])
+            htf_slow_ma = int(profile["htf_slow_ma"])
+            min_rr_ratio = float(profile["min_rr_ratio"])
+            sl_atr_multiplier = float(profile["sl_atr_multiplier"])
+            tp_rr_multiplier = float(profile["tp_rr_multiplier"])
+            max_spread_atr_ratio = float(profile["max_spread_atr_ratio"])
+            trend_strength_min = float(profile["trend_strength_min"])
+            rsi_buy_min = float(profile["rsi_buy_min"])
+            rsi_buy_max = float(profile["rsi_buy_max"])
+            rsi_sell_min = float(profile["rsi_sell_min"])
+            rsi_sell_max = float(profile["rsi_sell_max"])
+
+            htf_count = max(htf_slow_ma + 20, self.atr_period + 20)
+            ltf_count = max(self.sma_long + 30, self.atr_period + 20)
+
+            df_htf = self.get_market_data(symbol, timeframe=self.trend_timeframe, count=htf_count)
+            df_ltf = self.get_market_data(symbol, timeframe=self.timeframe, count=ltf_count)
+            if df_htf is None or df_ltf is None:
+                hold_result["reason"] = "Insufficient market data"
+                return hold_result
+
+            if len(df_htf) < htf_slow_ma or len(df_ltf) < self.sma_long:
+                hold_result["reason"] = "Not enough candles"
+                return hold_result
+
+            # Higher timeframe trend filter
+            df_htf["ma_fast"] = self.calculate_sma(df_htf["close"], htf_fast_ma)
+            df_htf["ma_slow"] = self.calculate_sma(df_htf["close"], htf_slow_ma)
+            df_htf["atr"] = self.calculate_atr(df_htf["high"], df_htf["low"], df_htf["close"], self.atr_period)
+
+            # Lower timeframe entry filter
+            df_ltf["sma_short"] = self.calculate_sma(df_ltf["close"], self.sma_short)
+            df_ltf["sma_long"] = self.calculate_sma(df_ltf["close"], self.sma_long)
+            df_ltf["rsi"] = self.calculate_rsi(df_ltf["close"], self.rsi_period)
+            df_ltf["atr"] = self.calculate_atr(df_ltf["high"], df_ltf["low"], df_ltf["close"], self.atr_period)
+
+            htf_latest = df_htf.iloc[-1]
+            htf_prev = df_htf.iloc[-2]
+            ltf_latest = df_ltf.iloc[-1]
+            ltf_prev = df_ltf.iloc[-2]
+
+            required_values = [
+                htf_latest["ma_fast"], htf_latest["ma_slow"], htf_latest["atr"],
+                ltf_latest["sma_short"], ltf_latest["sma_long"], ltf_latest["rsi"], ltf_latest["atr"],
+            ]
+            if any(pd.isna(value) for value in required_values):
+                hold_result["reason"] = "Indicators not ready"
+                return hold_result
+
+            htf_atr = float(htf_latest["atr"])
+            ltf_atr = float(ltf_latest["atr"])
+            if htf_atr <= 0 or ltf_atr <= 0:
+                hold_result["reason"] = "ATR invalid"
+                return hold_result
+
+            spread = float(tick.ask - tick.bid)
+            if spread > (max_spread_atr_ratio * ltf_atr):
+                hold_result["reason"] = f"Spread too high ({spread:.5f})"
+                return hold_result
+
+            trend_strength = abs(float(htf_latest["ma_fast"] - htf_latest["ma_slow"])) / htf_atr
+            bullish_trend = (
+                htf_latest["close"] > htf_latest["ma_slow"]
+                and htf_latest["ma_fast"] > htf_latest["ma_slow"]
+                and htf_latest["ma_fast"] > htf_prev["ma_fast"]
+                and trend_strength >= trend_strength_min
+            )
+            bearish_trend = (
+                htf_latest["close"] < htf_latest["ma_slow"]
+                and htf_latest["ma_fast"] < htf_latest["ma_slow"]
+                and htf_latest["ma_fast"] < htf_prev["ma_fast"]
+                and trend_strength >= trend_strength_min
+            )
+
+            bullish_entry = (
+                ltf_latest["sma_short"] > ltf_latest["sma_long"]
+                and ltf_prev["low"] <= ltf_prev["sma_short"]
+                and ltf_latest["close"] > ltf_latest["open"]
+                and rsi_buy_min <= ltf_latest["rsi"] <= rsi_buy_max
+            )
+            bearish_entry = (
+                ltf_latest["sma_short"] < ltf_latest["sma_long"]
+                and ltf_prev["high"] >= ltf_prev["sma_short"]
+                and ltf_latest["close"] < ltf_latest["open"]
+                and rsi_sell_min <= ltf_latest["rsi"] <= rsi_sell_max
+            )
+
+            signal = "HOLD"
+            if bullish_trend and bullish_entry:
+                signal = "BUY"
+            elif bearish_trend and bearish_entry:
+                signal = "SELL"
+
+            if signal == "HOLD":
+                hold_result["reason"] = "Trend/entry not aligned"
+                logger.info(
+                    f"Market Scan: {symbol} | Trend strength={trend_strength:.2f} | "
+                    f"RSI={ltf_latest['rsi']:.2f} | Signal=HOLD"
+                )
+                return hold_result
+
+            rr_ratio = max(min_rr_ratio, tp_rr_multiplier)
+            stops_level_points = getattr(symbol_info, "trade_stops_level", 0) or 0
+            min_stop_distance = float(stops_level_points * symbol_info.point)
+            sl_distance = max(sl_atr_multiplier * ltf_atr, min_stop_distance, spread * 1.5)
+            tp_distance = sl_distance * rr_ratio
+
+            digits = int(symbol_info.digits)
+            if signal == "BUY":
+                entry_price = float(tick.ask)
+                stop_loss = round(entry_price - sl_distance, digits)
+                take_profit = round(entry_price + tp_distance, digits)
+            else:
+                entry_price = float(tick.bid)
+                stop_loss = round(entry_price + sl_distance, digits)
+                take_profit = round(entry_price - tp_distance, digits)
+
+            if signal == "BUY" and not (stop_loss < entry_price < take_profit):
+                hold_result["reason"] = "Invalid BUY levels"
+                return hold_result
+            if signal == "SELL" and not (take_profit < entry_price < stop_loss):
+                hold_result["reason"] = "Invalid SELL levels"
+                return hold_result
+
+            logger.info(
+                f"Signal: {symbol} {signal} | entry={entry_price:.5f}, "
+                f"SL={stop_loss:.5f}, TP={take_profit:.5f}, RR={rr_ratio:.2f}, "
+                f"spread={spread:.5f}, trend_strength={trend_strength:.2f}, "
+                f"profile_rr_min={min_rr_ratio:.2f}"
+            )
+
+            return {
+                "signal": signal,
+                "entry_price": entry_price,
+                "stop_loss": stop_loss,
+                "take_profit": take_profit,
+                "rr_ratio": rr_ratio,
+                "min_rr_ratio": min_rr_ratio,
+                "reason": f"{signal} trend-following setup",
+            }
+
+        except Exception as e:
+            logger.error(f"Error generating trend-following signal for {symbol}: {e}")
+            hold_result["reason"] = str(e)
+            return hold_result
     
     def analyze_market(self, symbol: str) -> str:
         """
@@ -319,86 +557,13 @@ class MT5ForexRobot:
         Optimized for M5-M30 scalping/day-trading.
         """
         try:
-            # 1. Get Higher Timeframe (HTF) Trend data
-            df_htf = self.get_market_data(symbol, timeframe=self.trend_timeframe, count=self.sma_trend + 1)
-            if df_htf is None or len(df_htf) < self.sma_trend:
-                return 'HOLD'
-            
-            df_htf['sma_trend'] = self.calculate_sma(df_htf['close'], self.sma_trend)
-            htf_price = df_htf.iloc[-1]['close']
-            htf_trend_sma = df_htf.iloc[-1]['sma_trend']
-            
-            # Determine overall market direction from HTF
-            is_bullish_trend = htf_price > htf_trend_sma
-            is_bearish_trend = htf_price < htf_trend_sma
-            
-            # 2. Get Lower Timeframe (LTF) Entry data
-            df = self.get_market_data(symbol, timeframe=self.timeframe, count=self.sma_long + 10)
-            if df is None or len(df) < self.sma_long:
-                return 'HOLD'
-            
-            # Calculate LTF Indicators
-            df['sma_short'] = self.calculate_sma(df['close'], self.sma_short)
-            df['sma_long'] = self.calculate_sma(df['close'], self.sma_long)
-            df['rsi'] = self.calculate_rsi(df['close'], self.rsi_period)
-            
-            latest = df.iloc[-1]
-            prev = df.iloc[-2]
-            current_price = latest['close']
-            rsi = latest['rsi']
-            
-            # Signal Detection
-            golden_cross = (prev['sma_short'] <= prev['sma_long']) and (latest['sma_short'] > latest['sma_long'])
-            death_cross = (prev['sma_short'] >= prev['sma_long']) and (latest['sma_short'] < latest['sma_long'])
-            
-            # Log current state
-            trend_str = "BULLISH" if is_bullish_trend else "BEARISH"
-            logger.info(f"Market Scan: {symbol} | HTF Trend ({self.trend_timeframe}): {trend_str} | LTF RSI ({self.timeframe}): {rsi:.2f}")
-
-            # 3. Decision Logic: LTF entry MUST align with HTF trend
-            
-            # BUY: HTF is bullish + LTF Golden Cross + RSI not overbought
-            if is_bullish_trend and golden_cross:
-                if rsi < self.rsi_readybought:
-                    logger.info(f"✅ BUY SIGNAL: Confirmed on HTF. RSI: {rsi:.2f}")
-                    return 'BUY'
-            
-            # SELL: HTF is bearish + LTF Death Cross + RSI not oversold
-            elif is_bearish_trend and death_cross:
-                if rsi > self.rsi_readysold:
-                    logger.info(f"✅ SELL SIGNAL: Confirmed on HTF. RSI: {rsi:.2f}")
-                    return 'SELL'
-            
-            return 'HOLD'
+            signal_plan = self.generate_trend_following_signal(symbol)
+            return signal_plan.get("signal", "HOLD")
 
         except Exception as e:
             logger.error(f"Error in analyze_market: {e}")
             return 'HOLD'
-            #         return 'BUY'
-            #     else :
-            #         return 'SELL'
-            # # follow trend find rsi oversold and overbought
-            # elif sma_short > sma_long and current_price <= sma_short and current_price >= sma_long :
-            #     if rsi <= 90 and rsi > self.rsi_overbought :
-            #         return 'SELL'
-            #     elif rsi > 90 :
-            #         return 'SELL'
-            #     else :
-            #         return 'BUY'
-            # elif sma_short < sma_long and current_price >= sma_short and current_price <= sma_long :
-            #     if rsi >= 10 and rsi < self.rsi_oversold :
-            #         return 'BUY'
-            #     elif rsi < 10 :
-            #         return 'BUY'
-            #     else :
-            #         return 'SELL'
-            # else:
-            #     return 'HOLD => miss all logic'
-                
-        except Exception as e:
-            logger.error(f"Error analyzing market for {symbol}: {e}")
-            return 'HOLD'
-    
+
     def calculate_position_size(self, symbol: str, entry_price: float, stop_loss: float) -> float:
         """Calculate position size based on risk management"""
         try:
@@ -459,7 +624,13 @@ class MT5ForexRobot:
 
             for ticket in closed_tickets:
                 tracked = self.tracked_positions.pop(ticket)
-                close_info = self.get_position_close_info(ticket, tracked["symbol"])
+                close_info = {}
+                for _ in range(3):
+                    close_info = self.get_position_close_info(ticket, tracked["symbol"])
+                    if close_info:
+                        break
+                    # MT5 history can lag briefly after manual close; retry quickly.
+                    time.sleep(0.4)
                 event = {
                     "ticket": ticket,
                     "symbol": tracked["symbol"],
@@ -501,53 +672,71 @@ class MT5ForexRobot:
             logger.error(f"Error syncing MT5 positions: {e}")
             return []
 
+    def _map_deal_reason(self, reason_code: Optional[int]) -> str:
+        """Convert MT5 deal reason code into readable text."""
+        deal_reason_map = {}
+        for attr_name, label in [
+            ("DEAL_REASON_CLIENT", "manual/client"),
+            ("DEAL_REASON_EXPERT", "expert/robot"),
+            ("DEAL_REASON_SL", "stop loss"),
+            ("DEAL_REASON_TP", "take profit"),
+            ("DEAL_REASON_SO", "stop out"),
+            ("DEAL_REASON_ROLLOVER", "rollover"),
+            ("DEAL_REASON_VMARGIN", "variation margin"),
+            ("DEAL_REASON_SPLIT", "split"),
+        ]:
+            attr_value = getattr(mt5, attr_name, None)
+            if attr_value is not None:
+                deal_reason_map[attr_value] = label
+        return deal_reason_map.get(reason_code, f"reason_{reason_code if reason_code is not None else 'unknown'}")
+
     def get_position_close_info(self, position_ticket: int, symbol: str) -> Dict:
         """Get the latest close deal info for a specific position ticket."""
         try:
-            start_time = self.last_history_check - timedelta(minutes=5)
             end_time = datetime.now() + timedelta(minutes=1)
-            deals = mt5.history_deals_get(start_time, end_time)
+            close_entries = (mt5.DEAL_ENTRY_OUT, getattr(mt5, "DEAL_ENTRY_OUT_BY", -1))
 
-            if not deals:
-                return {}
+            # First: narrow search around the last sync to keep this fast.
+            search_windows = [
+                (self.last_history_check - timedelta(minutes=10), end_time),
+                # Fallback: broader window for delayed history propagation/manual closures.
+                (datetime.now() - timedelta(hours=24), end_time),
+            ]
 
-            closing_deals = []
-            for deal in deals:
-                if getattr(deal, "position_id", None) != position_ticket:
+            for start_time, end_time_window in search_windows:
+                deals = mt5.history_deals_get(start_time, end_time_window)
+                if not deals:
                     continue
-                if deal.entry != mt5.DEAL_ENTRY_OUT:
+
+                closing_deals = []
+                for deal in deals:
+                    position_id = getattr(deal, "position_id", None)
+                    if position_id != position_ticket:
+                        continue
+                    if getattr(deal, "entry", None) not in close_entries:
+                        continue
+                    if symbol and getattr(deal, "symbol", None) != symbol:
+                        continue
+                    closing_deals.append(deal)
+
+                if not closing_deals:
                     continue
-                if symbol and deal.symbol != symbol:
-                    continue
-                closing_deals.append(deal)
 
-            if not closing_deals:
-                return {}
+                last_close = max(closing_deals, key=lambda deal: deal.time)
+                net_profit = (
+                    (getattr(last_close, "profit", 0.0) or 0.0) +
+                    (getattr(last_close, "commission", 0.0) or 0.0) +
+                    (getattr(last_close, "swap", 0.0) or 0.0) +
+                    (getattr(last_close, "fee", 0.0) or 0.0)
+                )
 
-            last_close = max(closing_deals, key=lambda deal: deal.time)
-            deal_reason_map = {}
-            for attr_name, label in [
-                ("DEAL_REASON_CLIENT", "manual/client"),
-                ("DEAL_REASON_EXPERT", "expert/robot"),
-                ("DEAL_REASON_SL", "stop loss"),
-                ("DEAL_REASON_TP", "take profit"),
-                ("DEAL_REASON_SO", "stop out"),
-                ("DEAL_REASON_ROLLOVER", "rollover"),
-                ("DEAL_REASON_VMARGIN", "variation margin"),
-                ("DEAL_REASON_SPLIT", "split"),
-            ]:
-                attr_value = getattr(mt5, attr_name, None)
-                if attr_value is not None:
-                    deal_reason_map[attr_value] = label
+                return {
+                    "profit": net_profit,
+                    "time": datetime.fromtimestamp(last_close.time),
+                    "reason": self._map_deal_reason(getattr(last_close, "reason", None)),
+                }
 
-            return {
-                "profit": last_close.profit,
-                "time": datetime.fromtimestamp(last_close.time),
-                "reason": deal_reason_map.get(
-                    getattr(last_close, "reason", None),
-                    f"reason_{getattr(last_close, 'reason', 'unknown')}"
-                ),
-            }
+            return {}
 
         except Exception as e:
             logger.error(f"Error reading close info for ticket {position_ticket}: {e}")
@@ -592,7 +781,7 @@ class MT5ForexRobot:
                 "magic": self.magic_number,
                 "comment": "Python Forex Robot",
                 "type_time": mt5.ORDER_TIME_GTC,
-                "type_filling": mt5.ORDER_FILLING_FOK,   # <-- use detected filling mode
+                "type_filling": mt5.ORDER_FILLING_FOK,
             }
             
             # Send order
@@ -609,82 +798,75 @@ class MT5ForexRobot:
             logger.error(f"Error placing order: {e}")
             return False
     
-    def execute_trade(self, symbol: str, signal: str) -> bool:
+    def execute_trade(self, symbol: str, signal: str, signal_plan: Optional[Dict[str, Any]] = None) -> bool:
         """Execute a trade based on signal"""
         try:
             # Check drawdown protection first
             if self.trading_stopped_due_to_drawdown:
                 logger.warning(f"Trading stopped due to drawdown protection - ignoring {signal} signal for {symbol}")
                 return False
-            
+
             # Check if we already have a position for this symbol
             existing_positions = [pos for pos in self.get_current_positions() if pos.symbol == symbol]
             if existing_positions:
                 logger.info(f"Already have position for {symbol}")
                 return False
-            
-            # Get current market data for ATR calculation
-            df = self.get_market_data(symbol)
-            if df is None or len(df) < self.atr_period:
+
+            plan = signal_plan or self.generate_trend_following_signal(symbol)
+            plan_signal = plan.get("signal")
+            if plan_signal != signal or signal not in ["BUY", "SELL"]:
+                logger.info(f"Signal plan mismatch or HOLD for {symbol}. Requested={signal}, Plan={plan_signal}")
                 return False
-            
-            # Calculate ATR for stop loss
-            df['atr'] = self.calculate_atr(df['high'], df['low'], df['close'], self.atr_period)
-            current_atr = df['atr'].iloc[-1]
-            
-            # Get current price
-            tick = mt5.symbol_info_tick(symbol)
-            if not tick:
+
+            entry_price = plan.get("entry_price")
+            stop_loss = plan.get("stop_loss")
+            take_profit = plan.get("take_profit")
+            rr_ratio = plan.get("rr_ratio") or 0.0
+            min_rr_ratio = float(plan.get("min_rr_ratio") or self.min_rr_ratio)
+            if entry_price is None or stop_loss is None or take_profit is None:
+                logger.warning(f"Missing SL/TP plan for {symbol}: {plan.get('reason')}")
                 return False
-            
-            if signal == 'BUY':
-                entry_price = tick.ask
-                stop_loss = entry_price - (1 * current_atr)
-                take_profit = entry_price + (1.5 * current_atr)
-                
-                volume = self.calculate_position_size(symbol, entry_price, stop_loss)
-                
-                if volume > 0:
-                    success = self.place_order(
-                        symbol=symbol,
-                        order_type=mt5.ORDER_TYPE_BUY,
-                        volume=volume,
-                        price=entry_price,
-                        stop_loss=stop_loss,
-                        take_profit=take_profit
-                    )
-                    
-                    if success:
-                        logger.info(f"BUY order placed for {symbol}: Volume={volume}, Price={entry_price:.5f}, SL={stop_loss:.5f}, TP={take_profit:.5f}")
-                    return success
-            
-            elif signal == 'SELL':
-                entry_price = tick.bid
-                stop_loss = entry_price + (1 * current_atr)
-                take_profit = entry_price - (1.5 * current_atr)
-                
-                volume = self.calculate_position_size(symbol, entry_price, stop_loss)
-                
-                if volume > 0:
-                    success = self.place_order(
-                        symbol=symbol,
-                        order_type=mt5.ORDER_TYPE_SELL,
-                        volume=volume,
-                        price=entry_price,
-                        stop_loss=stop_loss,
-                        take_profit=take_profit
-                    )
-                    
-                    if success:
-                        logger.info(f"SELL order placed for {symbol}: Volume={volume}, Price={entry_price:.5f}, SL={stop_loss:.5f}, TP={take_profit:.5f}")
-                    return success
-            
-            return False
-            
+
+            risk_distance = abs(entry_price - stop_loss)
+            reward_distance = abs(take_profit - entry_price)
+            if risk_distance <= 0:
+                logger.warning(f"Invalid risk distance for {symbol}")
+                return False
+
+            actual_rr = reward_distance / risk_distance
+            if actual_rr < min_rr_ratio:
+                logger.warning(
+                    f"RR filter blocked {symbol} {signal}: actual RR {actual_rr:.2f} < minimum {min_rr_ratio:.2f}"
+                )
+                return False
+
+            volume = self.calculate_position_size(symbol, entry_price, stop_loss)
+            if volume <= 0:
+                logger.warning(f"Calculated volume invalid for {symbol}")
+                return False
+
+            order_type = mt5.ORDER_TYPE_BUY if signal == "BUY" else mt5.ORDER_TYPE_SELL
+            success = self.place_order(
+                symbol=symbol,
+                order_type=order_type,
+                volume=volume,
+                price=entry_price,
+                stop_loss=stop_loss,
+                take_profit=take_profit
+            )
+
+            if success:
+                logger.info(
+                    f"{signal} order placed for {symbol}: Volume={volume}, "
+                    f"Entry={entry_price:.5f}, SL={stop_loss:.5f}, TP={take_profit:.5f}, "
+                    f"RR={actual_rr:.2f} (planned {rr_ratio:.2f})"
+                )
+            return success
+
         except Exception as e:
             logger.error(f"Error executing trade for {symbol}: {e}")
             return False
-    
+
     def monitor_positions(self):
         """Monitor and manage existing positions"""
         try:
@@ -759,11 +941,12 @@ class MT5ForexRobot:
                 if not self.trading_stopped_due_to_drawdown:
                     for symbol in symbols:
                         try:
-                            signal = self.analyze_market(symbol)
+                            signal_plan = self.generate_trend_following_signal(symbol)
+                            signal = signal_plan.get("signal", "HOLD")
                             logger.info(f"{symbol}: Signal = {signal}")
                             
                             if signal in ['BUY', 'SELL']:
-                                self.execute_trade(symbol, signal)
+                                self.execute_trade(symbol, signal, signal_plan)
                                 
                         except Exception as e:
                             logger.error(f"Error processing {symbol}: {e}")
@@ -921,24 +1104,44 @@ class MT5ForexRobot:
         stats_text = "\n".join([f"{key}: {value}" for key, value in stats.items()])
 
         # Final message
-        message = f"📊 Trading Robot Report\n\n{stats_text}\n\n⏰ Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+        message = f"Trading Robot Report\n\n{stats_text}\n\nTime: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
 
         url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-        if message is None :
+        if message is None:
             payload = {"chat_id": chat_id, "text": "No trade history"}
-        else :
+        else:
             payload = {"chat_id": chat_id, "text": message}
 
-        try:
-            # r = requests.post(url, data=payload, verify=certifi.where())
-            r = requests.post(url, data=payload, verify=False)
-            if r.status_code == 200:
-                print("✅ Report sent to Telegram!")
-            else:
-                print("❌ Failed report to Telegram:", r.text)
-        except Exception as e:
-            print("❌ Error on sent report to Telegram", e)
-    
+        max_retries = 3
+        timeout_seconds = 12
+        dns_markers = ("NameResolutionError", "getaddrinfo failed", "Temporary failure in name resolution")
+
+        for attempt in range(1, max_retries + 1):
+            try:
+                response = requests.post(url, data=payload, timeout=timeout_seconds, verify=False)
+                if response.status_code == 200:
+                    logger.info("Telegram report sent successfully")
+                    return
+
+                logger.error(
+                    f"Telegram send failed (attempt {attempt}/{max_retries}): "
+                    f"status={response.status_code}, body={response.text}"
+                )
+            except requests.exceptions.RequestException as e:
+                err_msg = str(e)
+                if any(marker in err_msg for marker in dns_markers):
+                    logger.error(
+                        "Telegram send failed due to DNS/network name resolution. "
+                        "Please check internet/DNS settings, then retry."
+                    )
+                    return
+                logger.error(f"Telegram send exception (attempt {attempt}/{max_retries}): {e}")
+
+            if attempt < max_retries:
+                time.sleep(2 * attempt)
+
+        logger.error("Telegram report failed after max retries")
+
     def shutdown(self):
         """Shutdown the robot and MT5 connection"""
         self.is_running = False
@@ -956,8 +1159,7 @@ if __name__ == "__main__":
     )
     
     # Define symbols to trade (make sure these are available in your MT5)
-    # symbols = ['USDCHF']
-    symbols = ['XAUUSD']
+    symbols = ['XAUUSD','EURUSD']
     
     try:
         # Run the trading bot for 30 minutes (adjust as needed)
@@ -976,3 +1178,4 @@ if __name__ == "__main__":
     finally:
         # Always shutdown properly
         robot.shutdown() 
+

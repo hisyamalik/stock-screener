@@ -242,6 +242,30 @@ class SupportResistanceRobot:
         """Apply configuration to robot parameters"""
         for key, value in self.config.items():
             setattr(self, key, value)
+
+        # Auto-enable MTF filter for scalp entry timeframes unless explicitly configured.
+        if not hasattr(self, 'enable_multi_timeframe_scalping'):
+            self.enable_multi_timeframe_scalping = self.timeframe in (
+                mt5.TIMEFRAME_M1, mt5.TIMEFRAME_M5, mt5.TIMEFRAME_M15
+            )
+
+        # Default MTF momentum parameters (can be overridden from custom_config).
+        if not hasattr(self, 'mtf_ema_fast'):
+            self.mtf_ema_fast = 20
+        if not hasattr(self, 'mtf_ema_slow'):
+            self.mtf_ema_slow = 50
+        if not hasattr(self, 'mtf_rsi_period'):
+            self.mtf_rsi_period = 14
+        if not hasattr(self, 'mtf_rsi_buy_min'):
+            self.mtf_rsi_buy_min = 52
+        if not hasattr(self, 'mtf_rsi_sell_max'):
+            self.mtf_rsi_sell_max = 48
+        if not hasattr(self, 'mtf_slope_lookback'):
+            self.mtf_slope_lookback = 3
+        if not hasattr(self, 'confirmation_bars'):
+            self.confirmation_bars = 200
+        if not hasattr(self, 'trend_bars'):
+            self.trend_bars = 250
     
     def initialize_mt5(self) -> bool:
         """Initialize MT5 connection"""
@@ -358,6 +382,90 @@ class SupportResistanceRobot:
             return "bearish_engulfing"
             
         return "none"
+
+    def calculate_ema(self, prices: pd.Series, period: int) -> pd.Series:
+        """Calculate Exponential Moving Average."""
+        return prices.ewm(span=period, adjust=False).mean()
+
+    def calculate_rsi(self, prices: pd.Series, period: int = 14) -> pd.Series:
+        """Calculate RSI using Wilder smoothing."""
+        delta = prices.diff()
+        gain = delta.where(delta > 0, 0.0)
+        loss = -delta.where(delta < 0, 0.0)
+
+        avg_gain = gain.ewm(alpha=1 / period, min_periods=period, adjust=False).mean()
+        avg_loss = loss.ewm(alpha=1 / period, min_periods=period, adjust=False).mean()
+
+        rs = avg_gain / avg_loss.replace(0, np.nan)
+        rsi = 100 - (100 / (1 + rs))
+        return rsi.fillna(50)
+
+    def _resolve_scalping_timeframes(self) -> Tuple[int, int]:
+        """Resolve confirmation and trend timeframes for multi-timeframe scalping."""
+        default_map = {
+            mt5.TIMEFRAME_M1: (mt5.TIMEFRAME_M5, mt5.TIMEFRAME_M15),
+            mt5.TIMEFRAME_M5: (mt5.TIMEFRAME_M15, mt5.TIMEFRAME_M30),
+            mt5.TIMEFRAME_M15: (mt5.TIMEFRAME_M30, mt5.TIMEFRAME_H1),
+        }
+        default_confirmation, default_trend = default_map.get(
+            self.timeframe, (self.timeframe, self.analysis_timeframe)
+        )
+        confirmation_tf = getattr(self, "confirmation_timeframe", default_confirmation)
+        trend_tf = getattr(self, "trend_timeframe", self.analysis_timeframe or default_trend)
+        return confirmation_tf, trend_tf
+
+    def _get_timeframe_bias(self, df: pd.DataFrame) -> str:
+        """Return BULLISH/BEARISH/NEUTRAL for a timeframe using EMA trend + RSI filter."""
+        min_bars = max(self.mtf_ema_slow + self.mtf_slope_lookback + 5, self.mtf_rsi_period + 5)
+        if df is None or len(df) < min_bars:
+            return "NEUTRAL"
+
+        df = df.copy()
+        df["ema_fast"] = self.calculate_ema(df["close"], self.mtf_ema_fast)
+        df["ema_slow"] = self.calculate_ema(df["close"], self.mtf_ema_slow)
+        df["rsi"] = self.calculate_rsi(df["close"], self.mtf_rsi_period)
+
+        latest = df.iloc[-1]
+        prev = df.iloc[-1 - self.mtf_slope_lookback]
+
+        bullish = (
+            latest["close"] > latest["ema_fast"] > latest["ema_slow"] and
+            latest["ema_fast"] > prev["ema_fast"] and
+            latest["rsi"] >= self.mtf_rsi_buy_min
+        )
+        bearish = (
+            latest["close"] < latest["ema_fast"] < latest["ema_slow"] and
+            latest["ema_fast"] < prev["ema_fast"] and
+            latest["rsi"] <= self.mtf_rsi_sell_max
+        )
+
+        if bullish:
+            return "BULLISH"
+        if bearish:
+            return "BEARISH"
+        return "NEUTRAL"
+
+    def get_multi_timeframe_bias(self, symbol: str) -> str:
+        """
+        Combine confirmation+trend timeframe momentum into one directional bias.
+        Returns: BULLISH, BEARISH, or NEUTRAL.
+        """
+        try:
+            confirmation_tf, trend_tf = self._resolve_scalping_timeframes()
+            df_confirm = self.get_market_data(symbol, confirmation_tf, self.confirmation_bars)
+            df_trend = self.get_market_data(symbol, trend_tf, self.trend_bars)
+
+            confirmation_bias = self._get_timeframe_bias(df_confirm)
+            trend_bias = self._get_timeframe_bias(df_trend)
+
+            if confirmation_bias == trend_bias and confirmation_bias in ("BULLISH", "BEARISH"):
+                return confirmation_bias
+
+            return "NEUTRAL"
+
+        except Exception as e:
+            logger.error(f"Error building MTF bias for {symbol}: {e}")
+            return "NEUTRAL"
     
     def find_support_resistance_levels(self, df: pd.DataFrame, symbol: str) -> Dict[str, List[Dict]]:
         """
@@ -488,64 +596,73 @@ class SupportResistanceRobot:
     def check_support_resistance_entry(self, symbol: str) -> str:
         """
         Check for support/resistance entry opportunities
-        
+
         Returns:
             'BUY' for support bounce, 'SELL' for resistance rejection, 'HOLD' otherwise
         """
         try:
+            mtf_bias = "NEUTRAL"
+            if self.enable_multi_timeframe_scalping:
+                mtf_bias = self.get_multi_timeframe_bias(symbol)
+                logger.info(f"MTF Bias {symbol}: {mtf_bias}")
+
             # Get higher timeframe data for S/R identification
             df_higher = self.get_market_data(symbol, self.analysis_timeframe, self.analysis_period)
             if df_higher is None or len(df_higher) < self.sr_lookback_periods:
                 return 'HOLD'
-            
+
             # Get current timeframe data for entry signals
             df_current = self.get_market_data(symbol, self.timeframe, 1000)
             if df_current is None or len(df_current) < self.bounce_confirmation_bars + 1:
                 return 'HOLD'
-            
-            # Find S/R levels on higher timeframe (pass symbol parameter)
+
+            # Find S/R levels on higher timeframe
             sr_levels = self.find_support_resistance_levels(df_higher, symbol)
-            
+
             # Get current price
             tick = mt5.symbol_info_tick(symbol)
             if not tick:
                 return 'HOLD'
-            
+
             current_price = (tick.bid + tick.ask) / 2
             symbol_info = mt5.symbol_info(symbol)
             if not symbol_info:
                 return 'HOLD'
-                
+
             pip_value = symbol_info.point * 10
-            
-            # Check for support bounce (BUY signal)
-            for support in sr_levels['support']:
-                distance_pips = abs(current_price - support['price']) / pip_value
-                
-                if distance_pips <= self.sr_proximity_pips:
-                    # Check if price is bouncing from support
-                    if self._check_bounce_from_support(df_current, support['price']):
-                        logger.info(f"🟢 Support bounce detected at {support['price']:.5f} "
-                                  f"(Strength: {support['strength']}, Quality: {support['quality_score']:.1f})")
-                        return 'BUY'
-            
-            # Check for resistance rejection (SELL signal)
-            for resistance in sr_levels['resistance']:
-                distance_pips = abs(current_price - resistance['price']) / pip_value
-                
-                if distance_pips <= self.sr_proximity_pips:
-                    # Check if price is rejecting from resistance
-                    if self._check_rejection_from_resistance(df_current, resistance['price']):
-                        logger.info(f"🔴 Resistance rejection detected at {resistance['price']:.5f} "
-                                  f"(Strength: {resistance['strength']}, Quality: {resistance['quality_score']:.1f})")
-                        return 'SELL'
-            
+
+            # Check for support bounce (BUY signal), only if MTF bias allows.
+            if (not self.enable_multi_timeframe_scalping) or mtf_bias == "BULLISH":
+                for support in sr_levels['support']:
+                    distance_pips = abs(current_price - support['price']) / pip_value
+
+                    if distance_pips <= self.sr_proximity_pips:
+                        if self._check_bounce_from_support(df_current, support['price']):
+                            logger.info(
+                                f"Support bounce detected at {support['price']:.5f} "
+                                f"(Strength: {support['strength']}, Quality: {support['quality_score']:.1f})"
+                            )
+                            return 'BUY'
+
+            # Check for resistance rejection (SELL signal), only if MTF bias allows.
+            if (not self.enable_multi_timeframe_scalping) or mtf_bias == "BEARISH":
+                for resistance in sr_levels['resistance']:
+                    distance_pips = abs(current_price - resistance['price']) / pip_value
+
+                    if distance_pips <= self.sr_proximity_pips:
+                        if self._check_rejection_from_resistance(df_current, resistance['price']):
+                            logger.info(
+                                f"Resistance rejection detected at {resistance['price']:.5f} "
+                                f"(Strength: {resistance['strength']}, Quality: {resistance['quality_score']:.1f})"
+                            )
+                            return 'SELL'
+
             return 'HOLD'
-            
+
         except Exception as e:
             logger.error(f"Error checking S/R entry for {symbol}: {e}")
             return 'HOLD'
-    
+
     def _check_bounce_from_support(self, df: pd.DataFrame, support_level: float) -> bool:
         """Check if price is bouncing from support level with candlestick confirmation"""
         try:
@@ -1135,57 +1252,16 @@ class SupportResistanceRobot:
 
 # Example usage and configuration showcase
 if __name__ == "__main__":
-    """
-  
-    print("🎯 Support & Resistance Trading Robot Configurations")
-    print("=" * 60)
-    
-    # Example 1: Swing Trading with H1 entries on H4 S/R levels
-    print("\n1️⃣ SWING TRADING CONFIGURATION")
-    print("Entry: H1 | Analysis: H4 | Conservative approach")
-    
-    swing_robot = SupportResistanceRobot(TradingStrategy.SUPPORT_RESISTANCE_SWING)
-    
-    # Example 2: 15M Scalping with entries on H1 S/R levels  
-    print("\n2️⃣ 15-MINUTE SCALPING CONFIGURATION")
-    print("Entry: M15 | Analysis: H1 | Balanced scalping")
-    
-    scalp_15m_robot = SupportResistanceRobot(TradingStrategy.SUPPORT_RESISTANCE_SCALP_15M)
-    
-    # Example 3: 5M Scalping with entries on M30 S/R levels
-    print("\n3️⃣ 5-MINUTE SCALPING CONFIGURATION") 
-    print("Entry: M5 | Analysis: M30 | Active scalping")
-    
-    scalp_5m_robot = SupportResistanceRobot(TradingStrategy.SUPPORT_RESISTANCE_SCALP_5M)
-    
-    # Example 4: 1M Ultra-fast scalping
-    print("\n4️⃣ 1-MINUTE ULTRA SCALPING CONFIGURATION")
-    print("Entry: M1 | Analysis: M15 | High-frequency")
-    
-    scalp_1m_robot = SupportResistanceRobot(TradingStrategy.SUPPORT_RESISTANCE_SCALP_1M)
-    
-    # Example 5: Custom configuration
-    print("\n5️⃣ CUSTOM CONFIGURATION EXAMPLE")
-    
-    custom_config = {
-        'risk_per_trade': 0.001,
-        'max_drawdown_percent': 10.0,
-        'symbols': ['XAUUSD'],
-        'sr_touch_threshold': 2,
-        'stop_loss_pips': 15,
-        'take_profit_ratio': 2.5,
-        'strategy_name': 'My Custom S/R Strategy'
-    }
-    
-    custom_robot = SupportResistanceRobot(TradingStrategy.CUSTOM, custom_config)
-    """
-
-    
-    # Uncomment to run a demo session:
-    # swing_robot.run_sr_trading_session(duration_minutes=60, show_levels=True)
     
     # Example of running with statistics
-    scalp_robot = SupportResistanceRobot(TradingStrategy.SUPPORT_RESISTANCE_SCALP_1M)
+    scalp_robot = SupportResistanceRobot(
+        TradingStrategy.SUPPORT_RESISTANCE_SCALP_1M,
+        custom_config={
+            "enable_multi_timeframe_scalping": True,
+            "confirmation_timeframe": mt5.TIMEFRAME_M5,
+            "trend_timeframe": mt5.TIMEFRAME_M15,
+        }
+    )
     try:
         # Run trading session
         scalp_robot.run_sr_trading_session(duration_minutes=480, show_levels=True)
@@ -1202,3 +1278,4 @@ if __name__ == "__main__":
         scalp_robot.shutdown()
 
     
+
