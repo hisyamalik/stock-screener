@@ -6,9 +6,10 @@ import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
+import os
 import requests
 import urllib3
-from robot_runtime import configure_logging, load_env_file, parse_bool_env, parse_csv_env, parse_float_env, parse_int_env, parse_str_env
+from robot_runtime import configure_logging, load_env_file, parse_bool_env, parse_csv_env, parse_str_env
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
@@ -20,12 +21,12 @@ class TelegramConfig:
 
 @dataclass
 class BotRuntimeConfig:
-    risk_per_trade: float = 0.001
-    magic_number: int = 19910
-    max_drawdown_percent: float = 25.0
-    drawdown_period_hours: int = 4
-    run_duration_minutes: int = 60
-    report_period_hours: int = 4
+    risk_per_trade: float
+    magic_number: int
+    max_drawdown_percent: float
+    drawdown_period_hours: int
+    run_duration_minutes: int
+    report_period_hours: int
     symbols: List[str] = None
     log_level: str = "INFO"
     log_file: str = "logs/robot_trade.jsonl"
@@ -37,16 +38,32 @@ class BotRuntimeConfig:
         if self.symbols is None:
             self.symbols = ["XAUUSD", "EURUSD"]
 
+def _require_env(name: str) -> str:
+    value = os.getenv(name)
+    if value is None or str(value).strip() == "":
+        raise ValueError(f"Missing required environment variable: {name}")
+    return str(value).strip()
+
 def load_runtime_config() -> BotRuntimeConfig:
     load_env_file()
+    risk_per_trade = float(_require_env("MT5_RISK_PER_TRADE"))
+    magic_number = int(_require_env("MT5_MAGIC_NUMBER"))
+    max_drawdown_percent = float(_require_env("MT5_MAX_DRAWDOWN_PERCENT"))
+    drawdown_period_hours = int(_require_env("MT5_DRAWDOWN_PERIOD_HOURS"))
+    run_duration_minutes = int(_require_env("MT5_RUN_DURATION_MINUTES"))
+    report_period_hours = int(_require_env("MT5_REPORT_PERIOD_HOURS"))
+    symbols = [symbol.upper() for symbol in parse_csv_env(_require_env("MT5_SYMBOLS"), [])]
+    if not symbols:
+        raise ValueError("MT5_SYMBOLS must contain at least one symbol")
+
     return BotRuntimeConfig(
-        risk_per_trade=parse_float_env("MT5_RISK_PER_TRADE", 0.001),
-        magic_number=parse_int_env("MT5_MAGIC_NUMBER", 19910),
-        max_drawdown_percent=parse_float_env("MT5_MAX_DRAWDOWN_PERCENT", 25.0),
-        drawdown_period_hours=parse_int_env("MT5_DRAWDOWN_PERIOD_HOURS", 4),
-        run_duration_minutes=parse_int_env("MT5_RUN_DURATION_MINUTES", 60),
-        report_period_hours=parse_int_env("MT5_REPORT_PERIOD_HOURS", 4),
-        symbols=[symbol.upper() for symbol in parse_csv_env(parse_str_env("MT5_SYMBOLS", ""), ["XAUUSD", "EURUSD"])],
+        risk_per_trade=risk_per_trade,
+        magic_number=magic_number,
+        max_drawdown_percent=max_drawdown_percent,
+        drawdown_period_hours=drawdown_period_hours,
+        run_duration_minutes=run_duration_minutes,
+        report_period_hours=report_period_hours,
+        symbols=symbols,
         log_level=parse_str_env("ROBOT_LOG_LEVEL", "INFO"),
         log_file=parse_str_env("ROBOT_LOG_FILE", "logs/robot_trade.jsonl"),
         enable_jpy_tuning=parse_bool_env(parse_str_env("MT5_ENABLE_JPY_TUNING", None), True),
@@ -63,10 +80,10 @@ def load_telegram_config() -> TelegramConfig:
 logger = logging.getLogger(__name__)
 
 class MT5ForexRobot:
-    def __init__(self, risk_per_trade: float = 0.01, magic_number: int = 12345,
-                 max_drawdown_percent: float = 25.0, drawdown_period_hours: int = 24,
-                 timeframe: int = mt5.TIMEFRAME_M1, trend_timeframe: int = mt5.TIMEFRAME_M15,
-                 enable_jpy_tuning: bool = True, report_period_hours: int = 4,
+    def __init__(self, risk_per_trade: float, magic_number: int,
+                 max_drawdown_percent: float, drawdown_period_hours: int,
+                 timeframe: int, trend_timeframe: int,
+                 enable_jpy_tuning: bool, report_period_hours: int,
                  telegram_config: Optional[TelegramConfig] = None):
         """
         Initialize the MT5 Forex Trading Robot
