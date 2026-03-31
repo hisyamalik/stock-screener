@@ -33,6 +33,28 @@ class BotRuntimeConfig:
     timeframe: int = mt5.TIMEFRAME_M1
     trend_timeframe: int = mt5.TIMEFRAME_M5
     enable_jpy_tuning: bool = True
+    trading_mode: str = "normal"
+    sma_short: int = 7
+    sma_long: int = 25
+    sma_trend: int = 200
+    rsi_period: int = 14
+    rsi_readybought: float = 65.0
+    rsi_overbought: float = 80.0
+    rsi_neutral: float = 50.0
+    rsi_readysold: float = 35.0
+    rsi_oversold: float = 20.0
+    atr_period: int = 14
+    htf_fast_ma: int = 50
+    htf_slow_ma: int = 200
+    min_rr_ratio: float = 1.5
+    sl_atr_multiplier: float = 1.2
+    tp_rr_multiplier: float = 2.0
+    max_spread_atr_ratio: float = 0.20
+    trend_strength_min: float = 0.20
+    rsi_buy_min: float = 45.0
+    rsi_buy_max: float = 68.0
+    rsi_sell_min: float = 32.0
+    rsi_sell_max: float = 55.0
 
     def __post_init__(self):
         if self.symbols is None:
@@ -44,6 +66,81 @@ def _require_env(name: str) -> str:
         raise ValueError(f"Missing required environment variable: {name}")
     return str(value).strip()
 
+def get_trading_mode_profile(mode: str) -> Dict[str, float]:
+    mode_key = mode.strip().lower()
+    profiles: Dict[str, Dict[str, float]] = {
+        "normal": {
+            "sma_short": 7,
+            "sma_long": 25,
+            "sma_trend": 200,
+            "rsi_period": 14,
+            "rsi_readybought": 65.0,
+            "rsi_overbought": 80.0,
+            "rsi_neutral": 50.0,
+            "rsi_readysold": 35.0,
+            "rsi_oversold": 20.0,
+            "atr_period": 14,
+            "htf_fast_ma": 50,
+            "htf_slow_ma": 200,
+            "min_rr_ratio": 1.5,
+            "sl_atr_multiplier": 1.2,
+            "tp_rr_multiplier": 2.0,
+            "max_spread_atr_ratio": 0.20,
+            "trend_strength_min": 0.20,
+            "rsi_buy_min": 45.0,
+            "rsi_buy_max": 68.0,
+            "rsi_sell_min": 32.0,
+            "rsi_sell_max": 55.0,
+        },
+        "conservative": {
+            "sma_short": 9,
+            "sma_long": 30,
+            "sma_trend": 200,
+            "rsi_period": 14,
+            "rsi_readybought": 62.0,
+            "rsi_overbought": 78.0,
+            "rsi_neutral": 50.0,
+            "rsi_readysold": 38.0,
+            "rsi_oversold": 22.0,
+            "atr_period": 14,
+            "htf_fast_ma": 55,
+            "htf_slow_ma": 200,
+            "min_rr_ratio": 2.0,
+            "sl_atr_multiplier": 1.5,
+            "tp_rr_multiplier": 2.8,
+            "max_spread_atr_ratio": 0.12,
+            "trend_strength_min": 0.26,
+            "rsi_buy_min": 48.0,
+            "rsi_buy_max": 62.0,
+            "rsi_sell_min": 38.0,
+            "rsi_sell_max": 52.0,
+        },
+        "extreme": {
+            "sma_short": 5,
+            "sma_long": 18,
+            "sma_trend": 100,
+            "rsi_period": 10,
+            "rsi_readybought": 72.0,
+            "rsi_overbought": 88.0,
+            "rsi_neutral": 50.0,
+            "rsi_readysold": 28.0,
+            "rsi_oversold": 12.0,
+            "atr_period": 10,
+            "htf_fast_ma": 34,
+            "htf_slow_ma": 144,
+            "min_rr_ratio": 1.3,
+            "sl_atr_multiplier": 0.9,
+            "tp_rr_multiplier": 1.6,
+            "max_spread_atr_ratio": 0.28,
+            "trend_strength_min": 0.14,
+            "rsi_buy_min": 42.0,
+            "rsi_buy_max": 74.0,
+            "rsi_sell_min": 26.0,
+            "rsi_sell_max": 58.0,
+        },
+    }
+    return profiles[mode_key]
+
 def load_runtime_config() -> BotRuntimeConfig:
     load_env_file()
     risk_per_trade = float(_require_env("MT5_RISK_PER_TRADE"))
@@ -52,6 +149,10 @@ def load_runtime_config() -> BotRuntimeConfig:
     drawdown_period_hours = int(_require_env("MT5_DRAWDOWN_PERIOD_HOURS"))
     run_duration_minutes = int(_require_env("MT5_RUN_DURATION_MINUTES"))
     report_period_hours = int(_require_env("MT5_REPORT_PERIOD_HOURS"))
+    trading_mode = parse_str_env("MT5_TRADING_MODE", "normal").strip().lower()
+    if trading_mode not in {"conservative", "normal", "extreme"}:
+        raise ValueError("MT5_TRADING_MODE must be one of: conservative, normal, extreme")
+    profile = get_trading_mode_profile(trading_mode)
     symbols = [symbol.upper() for symbol in parse_csv_env(_require_env("MT5_SYMBOLS"), [])]
     if not symbols:
         raise ValueError("MT5_SYMBOLS must contain at least one symbol")
@@ -67,6 +168,28 @@ def load_runtime_config() -> BotRuntimeConfig:
         log_level=parse_str_env("ROBOT_LOG_LEVEL", "INFO"),
         log_file=parse_str_env("ROBOT_LOG_FILE", "logs/robot_trade.jsonl"),
         enable_jpy_tuning=parse_bool_env(parse_str_env("MT5_ENABLE_JPY_TUNING", None), True),
+        trading_mode=trading_mode,
+        sma_short=int(profile["sma_short"]),
+        sma_long=int(profile["sma_long"]),
+        sma_trend=int(profile["sma_trend"]),
+        rsi_period=int(profile["rsi_period"]),
+        rsi_readybought=float(profile["rsi_readybought"]),
+        rsi_overbought=float(profile["rsi_overbought"]),
+        rsi_neutral=float(profile["rsi_neutral"]),
+        rsi_readysold=float(profile["rsi_readysold"]),
+        rsi_oversold=float(profile["rsi_oversold"]),
+        atr_period=int(profile["atr_period"]),
+        htf_fast_ma=int(profile["htf_fast_ma"]),
+        htf_slow_ma=int(profile["htf_slow_ma"]),
+        min_rr_ratio=float(profile["min_rr_ratio"]),
+        sl_atr_multiplier=float(profile["sl_atr_multiplier"]),
+        tp_rr_multiplier=float(profile["tp_rr_multiplier"]),
+        max_spread_atr_ratio=float(profile["max_spread_atr_ratio"]),
+        trend_strength_min=float(profile["trend_strength_min"]),
+        rsi_buy_min=float(profile["rsi_buy_min"]),
+        rsi_buy_max=float(profile["rsi_buy_max"]),
+        rsi_sell_min=float(profile["rsi_sell_min"]),
+        rsi_sell_max=float(profile["rsi_sell_max"]),
     )
 
 
@@ -83,7 +206,13 @@ class MT5ForexRobot:
     def __init__(self, risk_per_trade: float, magic_number: int,
                  max_drawdown_percent: float, drawdown_period_hours: int,
                  timeframe: int, trend_timeframe: int,
-                 enable_jpy_tuning: bool, report_period_hours: int,
+                 enable_jpy_tuning: bool, report_period_hours: int, trading_mode: str,
+                 sma_short: int, sma_long: int, sma_trend: int,
+                 rsi_period: int, rsi_readybought: float, rsi_overbought: float, rsi_neutral: float,
+                 rsi_readysold: float, rsi_oversold: float, atr_period: int,
+                 htf_fast_ma: int, htf_slow_ma: int, min_rr_ratio: float, sl_atr_multiplier: float,
+                 tp_rr_multiplier: float, max_spread_atr_ratio: float, trend_strength_min: float,
+                 rsi_buy_min: float, rsi_buy_max: float, rsi_sell_min: float, rsi_sell_max: float,
                  telegram_config: Optional[TelegramConfig] = None):
         """
         Initialize the MT5 Forex Trading Robot
@@ -97,6 +226,7 @@ class MT5ForexRobot:
             trend_timeframe: Higher timeframe for trend filtering (M30, H1)
             enable_jpy_tuning: Enable/disable JPY pair profile adjustments
             report_period_hours: Default lookback window for trade reports
+            trading_mode: Strategy profile (conservative, normal, extreme)
             telegram_config: Telegram delivery settings loaded from environment
         """
         self.risk_per_trade = risk_per_trade
@@ -106,24 +236,30 @@ class MT5ForexRobot:
         self.trend_timeframe = trend_timeframe
         self.report_period_hours = report_period_hours
         self.telegram_config = telegram_config or TelegramConfig()
+        self.trading_mode = trading_mode.strip().lower()
         
-        # Trading parameters
-        self.sma_short = 7   # Slightly slower to reduce noise
-        self.sma_long = 25   # Better for M5-M30 cycles
-        self.sma_trend = 200 # Standard for Trend Filter
-        self.rsi_period = 14 # Standard period for more stability
-        self.rsi_readybought = 65 # More conservative for buy entries
-        self.rsi_overbought = 80
-        self.rsi_neutral = 50
-        self.rsi_readysold = 35 # More conservative for sell entries
-        self.rsi_oversold = 20
-        self.atr_period = 14
-        self.htf_fast_ma = 50
-        self.htf_slow_ma = 200
-        self.min_rr_ratio = 1.5
-        self.sl_atr_multiplier = 1.2
-        self.tp_rr_multiplier = 2.0
-        self.max_spread_atr_ratio = 0.20
+        # Trading parameters (resolved from selected trading mode profile)
+        self.sma_short = sma_short
+        self.sma_long = sma_long
+        self.sma_trend = sma_trend
+        self.rsi_period = rsi_period
+        self.rsi_readybought = rsi_readybought
+        self.rsi_overbought = rsi_overbought
+        self.rsi_neutral = rsi_neutral
+        self.rsi_readysold = rsi_readysold
+        self.rsi_oversold = rsi_oversold
+        self.atr_period = atr_period
+        self.htf_fast_ma = htf_fast_ma
+        self.htf_slow_ma = htf_slow_ma
+        self.min_rr_ratio = min_rr_ratio
+        self.sl_atr_multiplier = sl_atr_multiplier
+        self.tp_rr_multiplier = tp_rr_multiplier
+        self.max_spread_atr_ratio = max_spread_atr_ratio
+        self.trend_strength_min = trend_strength_min
+        self.rsi_buy_min = rsi_buy_min
+        self.rsi_buy_max = rsi_buy_max
+        self.rsi_sell_min = rsi_sell_min
+        self.rsi_sell_max = rsi_sell_max
         self.enable_jpy_tuning = enable_jpy_tuning
         
         # Drawdown protection parameters
@@ -138,7 +274,7 @@ class MT5ForexRobot:
         
         # Initialize MT5 connection
         self.initialize_mt5()
-    
+
     def initialize_mt5(self) -> bool:
         """Initialize MT5 connection"""
         try:
@@ -402,11 +538,11 @@ class MT5ForexRobot:
             "sl_atr_multiplier": float(self.sl_atr_multiplier),
             "tp_rr_multiplier": float(self.tp_rr_multiplier),
             "max_spread_atr_ratio": float(self.max_spread_atr_ratio),
-            "trend_strength_min": 0.20,
-            "rsi_buy_min": 45.0,
-            "rsi_buy_max": 68.0,
-            "rsi_sell_min": 32.0,
-            "rsi_sell_max": 55.0,
+            "trend_strength_min": float(self.trend_strength_min),
+            "rsi_buy_min": float(self.rsi_buy_min),
+            "rsi_buy_max": float(self.rsi_buy_max),
+            "rsi_sell_min": float(self.rsi_sell_min),
+            "rsi_sell_max": float(self.rsi_sell_max),
         }
 
         symbol_upper = symbol.upper()
@@ -1235,6 +1371,28 @@ def create_robot(config: BotRuntimeConfig) -> MT5ForexRobot:
         trend_timeframe=config.trend_timeframe,
         enable_jpy_tuning=config.enable_jpy_tuning,
         report_period_hours=config.report_period_hours,
+        trading_mode=config.trading_mode,
+        sma_short=config.sma_short,
+        sma_long=config.sma_long,
+        sma_trend=config.sma_trend,
+        rsi_period=config.rsi_period,
+        rsi_readybought=config.rsi_readybought,
+        rsi_overbought=config.rsi_overbought,
+        rsi_neutral=config.rsi_neutral,
+        rsi_readysold=config.rsi_readysold,
+        rsi_oversold=config.rsi_oversold,
+        atr_period=config.atr_period,
+        htf_fast_ma=config.htf_fast_ma,
+        htf_slow_ma=config.htf_slow_ma,
+        min_rr_ratio=config.min_rr_ratio,
+        sl_atr_multiplier=config.sl_atr_multiplier,
+        tp_rr_multiplier=config.tp_rr_multiplier,
+        max_spread_atr_ratio=config.max_spread_atr_ratio,
+        trend_strength_min=config.trend_strength_min,
+        rsi_buy_min=config.rsi_buy_min,
+        rsi_buy_max=config.rsi_buy_max,
+        rsi_sell_min=config.rsi_sell_min,
+        rsi_sell_max=config.rsi_sell_max,
         telegram_config=load_telegram_config(),
     )
 
@@ -1249,10 +1407,11 @@ def main() -> None:
     config = load_runtime_config()
     configure_logging(config.log_level, config.log_file)
     logger.info(
-        "Starting trading bot with config: symbols=%s run_duration_minutes=%s report_period_hours=%s",
+        "Starting trading bot with config: symbols=%s run_duration_minutes=%s report_period_hours=%s trading_mode=%s",
         config.symbols,
         config.run_duration_minutes,
         config.report_period_hours,
+        config.trading_mode,
     )
 
     robot = create_robot(config)
