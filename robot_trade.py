@@ -30,7 +30,7 @@ class BotRuntimeConfig:
     symbols: List[str] = None
     log_level: str = "INFO"
     log_file: str = "logs/robot_trade.jsonl"
-    timeframe: int = mt5.TIMEFRAME_M1
+    entry_timeframe: int = mt5.TIMEFRAME_M1
     trend_timeframe: int = mt5.TIMEFRAME_M5
     enable_jpy_tuning: bool = True
     trading_mode: str = "normal"
@@ -65,6 +65,52 @@ def _require_env(name: str) -> str:
     if value is None or str(value).strip() == "":
         raise ValueError(f"Missing required environment variable: {name}")
     return str(value).strip()
+
+def _parse_mt5_timeframe(value: str, var_name: str) -> int:
+    label = value.strip().upper()
+    mapping = {
+        "M1": mt5.TIMEFRAME_M1,
+        "M2": getattr(mt5, "TIMEFRAME_M2", mt5.TIMEFRAME_M1),
+        "M3": getattr(mt5, "TIMEFRAME_M3", mt5.TIMEFRAME_M1),
+        "M4": getattr(mt5, "TIMEFRAME_M4", mt5.TIMEFRAME_M1),
+        "M5": mt5.TIMEFRAME_M5,
+        "M6": getattr(mt5, "TIMEFRAME_M6", mt5.TIMEFRAME_M5),
+        "M10": getattr(mt5, "TIMEFRAME_M10", mt5.TIMEFRAME_M5),
+        "M12": getattr(mt5, "TIMEFRAME_M12", mt5.TIMEFRAME_M5),
+        "M15": mt5.TIMEFRAME_M15,
+        "M20": getattr(mt5, "TIMEFRAME_M20", mt5.TIMEFRAME_M15),
+        "M30": mt5.TIMEFRAME_M30,
+        "H1": mt5.TIMEFRAME_H1,
+        "H2": getattr(mt5, "TIMEFRAME_H2", mt5.TIMEFRAME_H1),
+        "H3": getattr(mt5, "TIMEFRAME_H3", mt5.TIMEFRAME_H1),
+        "H4": mt5.TIMEFRAME_H4,
+        "H6": getattr(mt5, "TIMEFRAME_H6", mt5.TIMEFRAME_H4),
+        "H8": getattr(mt5, "TIMEFRAME_H8", mt5.TIMEFRAME_H4),
+        "H12": getattr(mt5, "TIMEFRAME_H12", mt5.TIMEFRAME_H4),
+        "D1": mt5.TIMEFRAME_D1,
+        "W1": mt5.TIMEFRAME_W1,
+        "MN1": mt5.TIMEFRAME_MN1,
+    }
+    if label not in mapping:
+        raise ValueError(
+            f"Invalid {var_name}='{value}'. Valid values: "
+            "M1,M5,M15,M30,H1,H4,D1,W1,MN1 (and broker-supported variants)"
+        )
+    return mapping[label]
+
+def _timeframe_label(timeframe: int) -> str:
+    labels = {
+        mt5.TIMEFRAME_M1: "M1",
+        mt5.TIMEFRAME_M5: "M5",
+        mt5.TIMEFRAME_M15: "M15",
+        mt5.TIMEFRAME_M30: "M30",
+        mt5.TIMEFRAME_H1: "H1",
+        mt5.TIMEFRAME_H4: "H4",
+        mt5.TIMEFRAME_D1: "D1",
+        mt5.TIMEFRAME_W1: "W1",
+        mt5.TIMEFRAME_MN1: "MN1",
+    }
+    return labels.get(timeframe, str(timeframe))
 
 def get_trading_mode_profile(mode: str) -> Dict[str, float]:
     mode_key = mode.strip().lower()
@@ -149,6 +195,8 @@ def load_runtime_config() -> BotRuntimeConfig:
     drawdown_period_hours = int(_require_env("MT5_DRAWDOWN_PERIOD_HOURS"))
     run_duration_minutes = int(_require_env("MT5_RUN_DURATION_MINUTES"))
     report_period_hours = int(_require_env("MT5_REPORT_PERIOD_HOURS"))
+    entry_timeframe = _parse_mt5_timeframe(parse_str_env("MT5_ENTRY_TIMEFRAME", "M1"), "MT5_ENTRY_TIMEFRAME")
+    trend_timeframe = _parse_mt5_timeframe(parse_str_env("MT5_TREND_TIMEFRAME", "M5"), "MT5_TREND_TIMEFRAME")
     trading_mode = parse_str_env("MT5_TRADING_MODE", "normal").strip().lower()
     if trading_mode not in {"conservative", "normal", "extreme"}:
         raise ValueError("MT5_TRADING_MODE must be one of: conservative, normal, extreme")
@@ -165,6 +213,8 @@ def load_runtime_config() -> BotRuntimeConfig:
         run_duration_minutes=run_duration_minutes,
         report_period_hours=report_period_hours,
         symbols=symbols,
+        entry_timeframe=entry_timeframe,
+        trend_timeframe=trend_timeframe,
         log_level=parse_str_env("ROBOT_LOG_LEVEL", "INFO"),
         log_file=parse_str_env("ROBOT_LOG_FILE", "logs/robot_trade.jsonl"),
         enable_jpy_tuning=parse_bool_env(parse_str_env("MT5_ENABLE_JPY_TUNING", None), True),
@@ -205,7 +255,7 @@ logger = logging.getLogger(__name__)
 class MT5ForexRobot:
     def __init__(self, risk_per_trade: float, magic_number: int,
                  max_drawdown_percent: float, drawdown_period_hours: int,
-                 timeframe: int, trend_timeframe: int,
+                 entry_timeframe: int, trend_timeframe: int,
                  enable_jpy_tuning: bool, report_period_hours: int, trading_mode: str,
                  sma_short: int, sma_long: int, sma_trend: int,
                  rsi_period: int, rsi_readybought: float, rsi_overbought: float, rsi_neutral: float,
@@ -222,7 +272,7 @@ class MT5ForexRobot:
             magic_number: Unique identifier for this robot's trades
             max_drawdown_percent: Maximum allowed equity drawdown percentage
             drawdown_period_hours: Period in hours to monitor drawdown
-            timeframe: Current chart timeframe for entries (M5, M15, M30)
+            entry_timeframe: Entry/trigger timeframe for positions (e.g. M1, M5, M15)
             trend_timeframe: Higher timeframe for trend filtering (M30, H1)
             enable_jpy_tuning: Enable/disable JPY pair profile adjustments
             report_period_hours: Default lookback window for trade reports
@@ -232,7 +282,8 @@ class MT5ForexRobot:
         self.risk_per_trade = risk_per_trade
         self.magic_number = magic_number
         self.is_running = False
-        self.timeframe = timeframe
+        self.entry_timeframe = entry_timeframe
+        self.timeframe = entry_timeframe  # Backward-compat alias
         self.trend_timeframe = trend_timeframe
         self.report_period_hours = report_period_hours
         self.telegram_config = telegram_config or TelegramConfig()
@@ -433,10 +484,17 @@ class MT5ForexRobot:
             logger.error(f"Error in emergency close all positions: {e}")
             return False
     
-    def get_market_data(self, symbol: str, timeframe=mt5.TIMEFRAME_M5, count: int = 1000):
-        """Get historical market data from MT5"""
+    def get_market_data(self, symbol: str, timeframe: Optional[int] = None, count: int = 1000):
+        """
+        Get historical market data from MT5.
+
+        timeframe:
+            - None => uses self.entry_timeframe
+            - int  => explicit MT5 timeframe override
+        """
         try:
-            rates = mt5.copy_rates_from_pos(symbol, timeframe, 0, count)
+            tf = timeframe if timeframe is not None else self.entry_timeframe
+            rates = mt5.copy_rates_from_pos(symbol, tf, 0, count)
             if rates is None:
                 logger.error(f"Failed to get rates for {symbol}")
                 return None
@@ -628,7 +686,7 @@ class MT5ForexRobot:
             ltf_count = max(self.sma_long + 30, self.atr_period + 20)
 
             df_htf = self.get_market_data(symbol, timeframe=self.trend_timeframe, count=htf_count)
-            df_ltf = self.get_market_data(symbol, timeframe=self.timeframe, count=ltf_count)
+            df_ltf = self.get_market_data(symbol, timeframe=self.entry_timeframe, count=ltf_count)
             if df_htf is None or df_ltf is None:
                 hold_result["reason"] = "Insufficient market data"
                 return hold_result
@@ -1367,7 +1425,7 @@ def create_robot(config: BotRuntimeConfig) -> MT5ForexRobot:
         magic_number=config.magic_number,
         max_drawdown_percent=config.max_drawdown_percent,
         drawdown_period_hours=config.drawdown_period_hours,
-        timeframe=config.timeframe,
+        entry_timeframe=config.entry_timeframe,
         trend_timeframe=config.trend_timeframe,
         enable_jpy_tuning=config.enable_jpy_tuning,
         report_period_hours=config.report_period_hours,
@@ -1407,11 +1465,13 @@ def main() -> None:
     config = load_runtime_config()
     configure_logging(config.log_level, config.log_file)
     logger.info(
-        "Starting trading bot with config: symbols=%s run_duration_minutes=%s report_period_hours=%s trading_mode=%s",
+        "Starting trading bot with config: symbols=%s run_duration_minutes=%s report_period_hours=%s trading_mode=%s entry_tf=%s trend_tf=%s",
         config.symbols,
         config.run_duration_minutes,
         config.report_period_hours,
         config.trading_mode,
+        _timeframe_label(config.entry_timeframe),
+        _timeframe_label(config.trend_timeframe),
     )
 
     robot = create_robot(config)
