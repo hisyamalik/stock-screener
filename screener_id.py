@@ -11,7 +11,6 @@ import numpy as np
 import pandas as pd
 import requests
 import yfinance as yf
-from bs4 import BeautifulSoup
 
 warnings.filterwarnings("ignore")
 
@@ -38,6 +37,7 @@ class ScreenerConfig:
     min_turnover_idr: float = 1_000_000_000
     min_symbols_required: int = 50
     request_timeout: int = 15
+    symbol_file: str = "stocklist.csv"
     telegram_bot_token: str = os.getenv("TELEGRAM_BOT_TOKEN", "")
     telegram_chat_id: str = os.getenv("TELEGRAM_CHAT_ID", "")
 
@@ -68,109 +68,79 @@ class IndonesianStockScreener:
             return s
         return None
 
-    def fetch_all_idx_stocks_from_idx_website(self) -> List[str]:
-        """Fetch symbols from IDX endpoint."""
+    def get_default_idx_universe(self) -> List[str]:
+        """
+        Built-in IDX universe.
+        Uses a curated local list so screening does not depend on third-party
+        symbol websites. Price/volume data still comes from yfinance.
+        """
+        major_idx_stocks = [
+            "AALI", "ACES", "ADHI", "ADMF", "ADRO", "AGII", "AKRA", "AMRT", "ANTM", "APIC",
+            "APLN", "ASII", "ASRI", "AUTO", "BBCA", "BBHI", "BBKP", "BBNI", "BBRI", "BBTN",
+            "BBYB", "BCAP", "BDKR", "BDMN", "BEKS", "BEST", "BFIN", "BHAT", "BJBR", "BJTM",
+            "BKSL", "BMRI", "BMTR", "BNBR", "BNGA", "BNII", "BNLI", "BRIS", "BRMS", "BSDE",
+            "BTPN", "BTPS", "BUKA", "BUMI", "CPIN", "CTRA", "DGIK", "DLTA", "DOID", "DSNG",
+            "ELSA", "EMTK", "ERAA", "ESSA", "EXCL", "FILM", "FREN", "GGRM", "GIAA", "GJTL",
+            "GOTO", "HEAL", "HERO", "HMSP", "HRUM", "ICBP", "INAF", "INCO", "INDF", "INKP",
+            "INTP", "ISAT", "ITMG", "JPFA", "JSMR", "KAEF", "KLBF", "LPKR", "LPPF", "LSIP",
+            "MAIN", "MAPI", "MARK", "MDKA", "MEDC", "MIKA", "MNCN", "MPMX", "MTDL", "MYOR",
+            "PGAS", "PNBN", "PNLF", "PPRO", "PTBA", "PTPP", "PWON", "PYFA", "RALS", "SCMA",
+            "SIDO", "SILO", "SIMP", "SMAR", "SMGR", "SMRA", "SRTG", "SSIA", "SSMS", "TAPG",
+            "TBIG", "TBLA", "TINS", "TKIM", "TLKM", "TOWR", "TPIA", "UNTR", "UNVR", "WIKA",
+            "WMUU", "WSBP", "WSKT",
+        ]
+        cleaned_symbols = sorted({symbol for symbol in (self._clean_symbol(s) for s in major_idx_stocks) if symbol})
+        return cleaned_symbols
+
+    def load_symbols_from_csv(self) -> List[str]:
+        """Load IDX symbols from stocklist.csv so the universe can be maintained outside code."""
+        csv_path = self.config.symbol_file
+        if not os.path.exists(csv_path):
+            return []
+
         symbols: List[str] = []
         try:
-            url = "https://www.idx.co.id/umbraco/surface/ListedCompany/GetCompany"
-            resp = requests.post(url, timeout=self.config.request_timeout)
-            if resp.status_code != 200:
-                return symbols
-
-            data = resp.json()
-            items = data.get("data", []) if isinstance(data, dict) else data
-            if isinstance(items, list):
-                for item in items:
-                    if isinstance(item, dict):
-                        cleaned = self._clean_symbol(item.get("Kode", ""))
-                        if cleaned:
-                            symbols.append(cleaned)
+            with open(csv_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    raw = line.strip()
+                    if not raw or raw.startswith("#"):
+                        continue
+                    cleaned = self._clean_symbol(raw)
+                    if cleaned:
+                        symbols.append(cleaned)
         except Exception as e:
-            print(f"IDX source failed: {e}")
-        return symbols
+            print(f"Failed to read symbol file {csv_path}: {e}")
+            return []
 
-    def fetch_all_idx_stocks_from_sectors_app(self) -> List[str]:
-        """Fetch symbols from Sectors.app."""
-        symbols: List[str] = []
-        try:
-            url = "https://api.sectors.app/v1/companies/"
-            resp = requests.get(url, timeout=self.config.request_timeout)
-            if resp.status_code != 200:
-                return symbols
-
-            data = resp.json()
-            items = data.get("data", []) if isinstance(data, dict) else data
-            if isinstance(items, list):
-                for item in items:
-                    if isinstance(item, dict):
-                        cleaned = self._clean_symbol(item.get("symbol", ""))
-                        if cleaned:
-                            symbols.append(cleaned)
-        except Exception as e:
-            print(f"Sectors.app source failed: {e}")
-        return symbols
-
-    def fetch_all_idx_stocks_from_stockanalysis(self) -> List[str]:
-        """Fetch symbols by scraping stockanalysis IDX page."""
-        symbols: List[str] = []
-        try:
-            url = "https://stockanalysis.com/list/indonesia-stock-exchange/"
-            headers = {
-                "User-Agent": (
-                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                    "AppleWebKit/537.36 (KHTML, like Gecko) "
-                    "Chrome/124.0 Safari/537.36"
-                )
-            }
-            resp = requests.get(url, headers=headers, timeout=self.config.request_timeout)
-            if resp.status_code != 200:
-                return symbols
-
-            soup = BeautifulSoup(resp.text, "html.parser")
-            table = soup.find("table")
-            if not table:
-                return symbols
-
-            rows = table.find_all("tr")
-            for row in rows[1:]:
-                tds = row.find_all("td")
-                if not tds:
-                    continue
-                text = tds[0].get_text(strip=True)
-                cleaned = self._clean_symbol(text)
-                if cleaned:
-                    symbols.append(cleaned)
-        except Exception as e:
-            print(f"StockAnalysis source failed: {e}")
-        return symbols
+        return sorted(set(symbols))
 
     def load_all_idx_symbols(self) -> List[str]:
-        """Always refresh universe from online sources each run."""
-        symbols_set = set()
-        sources = [
-            self.fetch_all_idx_stocks_from_idx_website,
-            self.fetch_all_idx_stocks_from_sectors_app,
-            self.fetch_all_idx_stocks_from_stockanalysis,
-        ]
+        """
+        Load IDX symbols from stocklist.csv first.
+        Falls back to the built-in universe only if the CSV is missing or too small.
+        """
+        symbols = self.load_symbols_from_csv()
+        source_name = self.config.symbol_file
 
-        for source in sources:
-            try:
-                fetched = source()
-                if fetched:
-                    symbols_set.update(fetched)
-                    print(f"{source.__name__}: +{len(fetched)} symbols")
-                time.sleep(0.8)
-            except Exception as e:
-                print(f"{source.__name__} error: {e}")
+        if len(symbols) < self.config.min_symbols_required:
+            fallback_symbols = self.get_default_idx_universe()
+            if len(symbols) < len(fallback_symbols):
+                print(
+                    f"{self.config.symbol_file} has only {len(symbols)} valid symbols. "
+                    "Using built-in fallback universe."
+                )
+                symbols = fallback_symbols
+                source_name = "built-in fallback universe"
 
-        if len(symbols_set) < self.config.min_symbols_required:
+        if len(symbols) < self.config.min_symbols_required:
             raise RuntimeError(
-                f"Too few symbols fetched ({len(symbols_set)}). "
-                "Check internet/source endpoints before screening."
+                f"Too few symbols loaded ({len(symbols)}). "
+                "Expand stocklist.csv or the built-in symbol list before screening."
             )
 
-        self.idx_symbols = sorted([f"{s}.JK" for s in symbols_set])
-        print(f"Total symbols loaded: {len(self.idx_symbols)}")
+        self.idx_symbols = [f"{s}.JK" for s in symbols]
+        print(f"Loaded IDX universe from {source_name}: {len(self.idx_symbols)} symbols")
+        print("Market data source: yfinance (.JK tickers)")
         return self.idx_symbols
 
     @staticmethod
@@ -206,7 +176,25 @@ class IndonesianStockScreener:
             )
             if data is None or data.empty:
                 return None
-            return data.dropna().copy()
+
+            df = data.copy()
+
+            # yfinance can sometimes return MultiIndex columns even for one ticker.
+            # Normalize to simple OHLCV columns for the downstream screener logic.
+            if isinstance(df.columns, pd.MultiIndex):
+                if symbol in df.columns.get_level_values(-1):
+                    df = df.xs(symbol, axis=1, level=-1)
+                else:
+                    df.columns = df.columns.get_level_values(0)
+
+            df = df.loc[:, ~df.columns.duplicated()].copy()
+            expected_cols = ["Open", "High", "Low", "Close", "Volume"]
+            missing_cols = [col for col in expected_cols if col not in df.columns]
+            if missing_cols:
+                print(f"{symbol}: missing required columns from Yahoo data: {missing_cols}")
+                return None
+
+            return df.dropna().copy()
         except Exception as e:
             err = str(e)
             if "CERTIFICATE_VERIFY_FAILED" in err or "SSLCertVerificationError" in err:
@@ -283,21 +271,29 @@ class IndonesianStockScreener:
         last = df.iloc[-1]
         prev = df.iloc[-2]
 
-        if pd.isna(last["SMA20"]) or pd.isna(last["SMA50"]) or pd.isna(last["VOL20"]):
+        sma20 = float(last["SMA20"])
+        sma50 = float(last["SMA50"])
+        vol20 = float(last["VOL20"])
+        close = float(last["Close"])
+        prev_close = float(prev["Close"])
+        vol = float(last["Volume"])
+        rsi14 = float(last["RSI14"])
+        macd_hist = float(last["MACD_HIST"])
+        hh20 = float(last["HH20"])
+
+        if pd.isna(sma20) or pd.isna(sma50) or pd.isna(vol20):
             return None
 
-        close = float(last["Close"])
-        avg_vol = float(last["VOL20"])
-        vol = float(last["Volume"])
+        avg_vol = vol20
         vol_ratio = vol / avg_vol if avg_vol > 0 else 0
         turnover = close * vol
-        day_change_pct = ((close - float(prev["Close"])) / float(prev["Close"])) * 100 if prev["Close"] else 0.0
+        day_change_pct = ((close - prev_close) / prev_close) * 100 if prev_close else 0.0
 
-        above_sma20 = close > float(last["SMA20"])
-        sma20_above_sma50 = float(last["SMA20"]) > float(last["SMA50"])
-        rsi_ok = 50 <= float(last["RSI14"]) <= 72
-        macd_ok = float(last["MACD_HIST"]) > 0
-        breakout_20d = close >= float(last["HH20"]) * 0.995
+        above_sma20 = close > sma20
+        sma20_above_sma50 = sma20 > sma50
+        rsi_ok = 50 <= rsi14 <= 72
+        macd_ok = macd_hist > 0
+        breakout_20d = close >= hh20 * 0.995
 
         trend_score = sum([above_sma20, sma20_above_sma50, rsi_ok, macd_ok, breakout_20d])
         volume_score = 0
@@ -339,7 +335,7 @@ class IndonesianStockScreener:
             "volume": vol,
             "vol_ratio": vol_ratio,
             "turnover_idr": turnover,
-            "rsi14": float(last["RSI14"]),
+            "rsi14": rsi14,
             "trend_up": bool(above_sma20 and sma20_above_sma50),
             "macd_positive": bool(macd_ok),
             "breakout_20d": bool(breakout_20d),
