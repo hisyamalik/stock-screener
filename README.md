@@ -24,25 +24,25 @@ This repository contains:
 - Configurable run/report windows via environment variables
 
 ### `screener_id.py` (Indonesian daily screener)
-- Dynamic symbol universe loaded at runtime from multiple online sources
+- Symbol universe loaded from `stocklist.csv` each run (with built-in fallback list if CSV is missing/too small)
 - Daily technical + volume scoring and ranking
 - Action labels: `ADD`, `WATCH`, `MONITOR`
 - Exports report files:
   - `screener_report.csv`
   - `screener_report.json`
 - Telegram-ready summary + file attachments
-- SSL fail-fast handling and stricter symbol sanitization (prevents noisy repeated ticker errors)
+- SSL fail-fast preflight and stricter symbol sanitization (prevents noisy repeated ticker errors)
 
 ### `command.py`
 - Thin runner for the latest screener flow:
-  - refresh universe
+  - refresh universe (`stocklist.csv` -> fallback list)
   - screen
   - display
   - export
   - send Telegram
 
 ### `manager.py`
-- Utility for refreshing/exporting current IDX universe to `idx_universe.csv`
+- Utility for loading current screener universe and exporting it to `idx_universe.csv`
 
 ## Key Files
 
@@ -89,6 +89,11 @@ Then fill `.env` values.
 - `MT5_LOGIN`
 - `MT5_PASSWORD`
 - `MT5_SERVER`
+
+### `screener_id.py`
+- Uses shared Telegram variables above for report delivery.
+- Universe source file: `stocklist.csv` (one symbol per line, e.g. `BBCA`; comments allowed with `#`).
+- If `stocklist.csv` has too few valid symbols, screener falls back to built-in IDX universe.
 
 ### `robot_trade.py`
 - `MT5_SYMBOLS`

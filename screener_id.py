@@ -1,3 +1,5 @@
+"""Indonesian daily stock screener with technical + volume ranking and Telegram reporting."""
+
 import json
 import os
 import re
@@ -30,6 +32,8 @@ except Exception:
 
 @dataclass
 class ScreenerConfig:
+    """Configuration values for screener data, filters, and Telegram delivery."""
+
     period: str = "9mo"
     interval: str = "1d"
     min_price: float = 50.0
@@ -53,12 +57,14 @@ class IndonesianStockScreener:
     """
 
     def __init__(self, config: Optional[ScreenerConfig] = None):
+        """Create screener runtime state with optional custom configuration."""
         self.config = config or ScreenerConfig()
         self.idx_symbols: List[str] = []
         self.screened_stocks: List[Dict] = []
         self.ssl_error_detected = False
 
     def _clean_symbol(self, symbol: str) -> Optional[str]:
+        """Normalize a raw symbol and keep only valid 4-letter IDX stock codes."""
         if not symbol:
             return None
         s = str(symbol).strip().upper().replace(".JK", "")
@@ -145,6 +151,7 @@ class IndonesianStockScreener:
 
     @staticmethod
     def _rsi(close: pd.Series, period: int = 14) -> pd.Series:
+        """Compute RSI using exponential moving averages for gains and losses."""
         delta = close.diff()
         gain = delta.where(delta > 0, 0.0)
         loss = -delta.where(delta < 0, 0.0)
@@ -155,6 +162,7 @@ class IndonesianStockScreener:
 
     @staticmethod
     def _macd(close: pd.Series) -> Tuple[pd.Series, pd.Series, pd.Series]:
+        """Return MACD line, signal line, and histogram from closing prices."""
         ema12 = close.ewm(span=12, adjust=False).mean()
         ema26 = close.ewm(span=26, adjust=False).mean()
         macd = ema12 - ema26
@@ -163,6 +171,7 @@ class IndonesianStockScreener:
         return macd, signal, hist
 
     def get_stock_data(self, symbol: str) -> Optional[pd.DataFrame]:
+        """Download and normalize OHLCV data for one .JK symbol from Yahoo Finance."""
         if self.ssl_error_detected:
             return None
         try:
@@ -225,6 +234,7 @@ class IndonesianStockScreener:
         return bool(re.fullmatch(r"[A-Z]{4}", base))
 
     def screen_stocks(self, max_symbols: Optional[int] = None) -> List[Dict]:
+        """Run daily screening on the loaded universe and return ranked stock candidates."""
         if not self.idx_symbols:
             self.load_all_idx_symbols()
 
@@ -256,6 +266,7 @@ class IndonesianStockScreener:
         return results
 
     def analyze_stock_daily(self, symbol: str, data: pd.DataFrame) -> Optional[Dict]:
+        """Score one stock using trend, momentum, breakout, and volume quality signals."""
         if data is None or len(data) < 80:
             return None
 
@@ -347,6 +358,7 @@ class IndonesianStockScreener:
         }
 
     def build_report_dataframe(self) -> pd.DataFrame:
+        """Convert internal screening results into a report-friendly DataFrame."""
         if not self.screened_stocks:
             return pd.DataFrame()
 
@@ -372,6 +384,7 @@ class IndonesianStockScreener:
         return df[report_cols]
 
     def display_report(self, top_n: int = 30) -> None:
+        """Print a formatted console report for the highest-ranked candidates."""
         df = self.build_report_dataframe()
         if df.empty:
             print("No screening results available.")
@@ -399,6 +412,7 @@ class IndonesianStockScreener:
         print(f"MONITOR candidates: {monitor_count}")
 
     def export_report(self, csv_path: str = "screener_report.csv", json_path: str = "screener_report.json") -> None:
+        """Export current screening results to CSV and JSON files."""
         df = self.build_report_dataframe()
         if df.empty:
             print("No data to export.")
@@ -416,6 +430,7 @@ class IndonesianStockScreener:
         files: Optional[Dict] = None,
         max_retries: int = 3,
     ) -> bool:
+        """Send Telegram API request with retry/backoff handling."""
         for attempt in range(1, max_retries + 1):
             try:
                 response = requests.post(
@@ -436,6 +451,7 @@ class IndonesianStockScreener:
         return False
 
     def _send_telegram_text(self, text: str) -> bool:
+        """Send text to Telegram chat and split long messages into safe-size chunks."""
         token = self.config.telegram_bot_token
         chat_id = self.config.telegram_chat_id
         if not token or not chat_id:
@@ -468,6 +484,7 @@ class IndonesianStockScreener:
         return ok
 
     def _send_telegram_file(self, file_path: str, caption: str = "") -> bool:
+        """Send one file attachment to Telegram chat as a document."""
         token = self.config.telegram_bot_token
         chat_id = self.config.telegram_chat_id
         if not token or not chat_id:
@@ -483,6 +500,7 @@ class IndonesianStockScreener:
             return self._telegram_request_with_retry(url, payload, files=files)
 
     def build_telegram_summary(self, top_n: int = 10) -> str:
+        """Build a compact Telegram-ready summary of ADD/WATCH candidates."""
         df = self.build_report_dataframe()
         if df.empty:
             return "Stock Screener: no candidates found."
@@ -522,6 +540,7 @@ class IndonesianStockScreener:
         return "\n".join(lines)
 
     def send_telegram_report(self, csv_path: str = "screener_report.csv", json_path: str = "screener_report.json") -> bool:
+        """Send Telegram summary plus report attachments and return overall success state."""
         summary = self.build_telegram_summary(top_n=10)
         ok_text = self._send_telegram_text(summary)
         ok_csv = self._send_telegram_file(csv_path, caption="Screener CSV report")
