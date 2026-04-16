@@ -21,6 +21,9 @@ This repository originally contained a mixture of standalone Python CLI scripts 
    - Built endpoints to stream these logs to the frontend.
    - Added embedded, real-time logging screens to both `ScreenerPanel` and `ForexPanel` in the React dashboard, paired with explicit button "loading" visual feedback states to fix earlier bugs where the UI would appear dead.
 
+5. **Source Control Maintenance**
+   - Configured robust `.gitignore` tailored for the FastAPI + Vite/React tech stack, ignoring Python virtual environments, compiled caches, and frontend build outputs.
+
 ## Next Steps / Future Work
 - Implementing configuration editing (modifying `.env` variables) directly from the React dashboard.
 

@@ -7,6 +7,7 @@ The project is divided into an isolated Python backend (FastAPI) and a modern Vi
 stock-screener/
 ├── .env                        # Environment variables (API tokens, MT5 credentials, etc.)
 ├── .env.example
+├── .gitignore                  # Excluded tracked files and directories
 ├── bug-trace.md                # Bug tracking and resolution history
 ├── README.md                   # Legacy documentation
 ├── requirements.txt            # Python dependencies (FastAPI, pandas, MetaTrader5, etc.)
