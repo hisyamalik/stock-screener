@@ -1,0 +1,20 @@
+2026-04-16 12:09:51,097 - INFO - Starting trading bot with config: symbols=['XAUUSD', 'EURUSD'] run_duration_minutes=180 report_period_hours=4 trading_mode=extreme entry_tf=M1 trend_tf=M5
+2026-04-16 12:09:51,268 - INFO - Connected to MT5 account: 105187155
+2026-04-16 12:09:51,268 - INFO - Account balance: $100.18
+2026-04-16 12:09:51,268 - INFO - Account equity: $100.18
+2026-04-16 12:09:51,268 - INFO - Drawdown protection: Max 25.0% over 4 hours
+2026-04-16 12:09:51,268 - INFO - Starting MT5 Forex Robot for 180 minutes
+2026-04-16 12:09:51,268 - INFO - Trading symbols: ['XAUUSD', 'EURUSD']
+2026-04-16 12:09:51,268 - INFO - --- Trading Cycle ---
+2026-04-16 12:09:51,275 - INFO - Equity Monitor - Current: $100.18, Peak: $100.18, Drawdown: 0.00% (Max allowed: 25.0%)
+2026-04-16 12:09:51,348 - INFO - Signal: XAUUSD BUY | entry=4835.46000, SL=4832.81000, TP=4841.82000, RR=2.40, spread=0.17000, trend_strength=4.70, profile_rr_min=1.80
+2026-04-16 12:09:51,349 - INFO - XAUUSD: Signal = BUY
+2026-04-16 12:09:51,601 - INFO - Order successful: 8224316950 - Request executed
+2026-04-16 12:09:51,601 - INFO - BUY order placed for XAUUSD: Volume=0.01, Entry=4835.46000, SL=4832.81000, TP=4841.82000, RR=2.40 (planned 2.40)
+2026-04-16 12:09:51,640 - INFO - EURUSD: Signal = HOLD
+2026-04-16 12:10:51,649 - INFO - --- Trading Cycle ---
+2026-04-16 12:10:51,651 - INFO - Equity Monitor - Current: $100.56, Peak: $100.56, Drawdown: 0.00% (Max allowed: 25.0%)
+2026-04-16 12:10:51,652 - INFO - Position XAUUSD: Type=0, Volume=0.01, Profit=$0.38
+2026-04-16 12:10:51,722 - INFO - Market Scan: XAUUSD | Trend strength=4.78 | RSI=65.21 | Signal=HOLD
+2026-04-16 12:10:51,724 - INFO - XAUUSD: Signal = HOLD
+2026-04-16 12:10:51,750 - INFO - EURUSD: Signal = HOLD

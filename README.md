@@ -1,172 +1,71 @@
-# Stock Screener and MT5 Trading Bots
+# QuantDash: Stock Screener & MT5 Trading Bots Dashboard
 
-This repository contains:
+Welcome to the Quantitative Trading Dashboard! 
+This project has recently been refactored from a collection of standalone Python CLI scripts into a clean, modern web application architecture consisting of a standalone Python FastAPI backend and a beautiful React + Vite frontend.
 
-1. MT5 trading bots (`robot_trade.py`, `robot_trade_sr.py`, `robot_crt_po3.py`)
-2. Indonesian stock screener pipeline (`screener_id.py`, `command.py`, `manager.py`)
+## Overview
+This repository manages two entirely distinct quantitative domains:
 
-## Current Status
+1. **Forex Algorithmic Trading Bots (`backend/forex_robot/`)**: Automated MT5 trading scripts designed for various market strategies (`robot_trade.py` for trend following, `robot_trade_sr.py` for Support/Resistance, and `robot_crt_po3.py`).
+2. **Indonesian Stock Exchange (IDX) Screener (`backend/stock_screener/`)**: A dedicated daily technical and volume screener pipeline (`screener_id.py`, `command.py`).
 
-### `robot_trade.py` (trend-following bot)
-- Environment-driven runtime config (required vars for core risk/runtime settings)
-- Drawdown protection and emergency close logic
-- Trend-following signal engine with per-symbol adjustments (XAUUSD, EURUSD, optional JPY tuning)
-- Trading mode profiles: `conservative`, `normal`, `extreme`
-- Clear timeframe separation:
-  - `entry_timeframe` for entries/position decisions
-  - `trend_timeframe` for higher timeframe trend filter
-- Position sync against MT5 and close-reason/profit reconciliation
-- Telegram summary reporting
+Both pipelines are seamlessly managed, monitored, and executed via a unified web dashboard.
 
-### `robot_trade_sr.py` (support/resistance bot)
-- Strategy profile runner (`SUPPORT_RESISTANCE_SWING`, `...SCALP_1M`, `...SCALP_5M`, `...SCALP_15M`, `CUSTOM`)
-- Multi-timeframe scalping filter support (`SR_ENABLE_MULTI_TIMEFRAME_SCALPING`)
-- Configurable run/report windows via environment variables
+## Architecture
 
-### `screener_id.py` (Indonesian daily screener)
-- Symbol universe loaded from `stocklist.csv` each run (with built-in fallback list if CSV is missing/too small)
-- Daily technical + volume scoring and ranking
-- Action labels: `ADD`, `WATCH`, `MONITOR`
-- Exports report files:
-  - `screener_report.csv`
-  - `screener_report.json`
-- Telegram-ready summary + file attachments
-- SSL fail-fast preflight and stricter symbol sanitization (prevents noisy repeated ticker errors)
+The project is thoughtfully split into isolated services:
 
-### `command.py`
-- Thin runner for the latest screener flow:
-  - refresh universe (`stocklist.csv` -> fallback list)
-  - screen
-  - display
-  - export
-  - send Telegram
-
-### `manager.py`
-- Utility for loading current screener universe and exporting it to `idx_universe.csv`
-
-## Key Files
-
-- `robot_trade.py`
-- `robot_trade_sr.py`
-- `robot_crt_po3.py`
-- `robot_runtime.py`
-- `screener_id.py`
-- `command.py`
-- `manager.py`
-- `.env.example`
-- `requirements.txt`
+- **`backend/`**: A native Python FastAPI server that acts as the orchestration layer. It exposes HTTP endpoints to trigger bot execution and screener pipelines asynchronously, whilst streaming their logs.
+- **`web/`**: A React/Vite-powered modern UI with premium glassmorphism aesthetics and entrance animations, providing you a 10,000-foot view of your automated trading strategies.
 
 ## Requirements
 
-- Windows
-- Python 3.9+
-- MetaTrader 5 desktop terminal installed
-- Valid MT5 account session/credentials (depending on script)
+- **OS**: Windows (Required for MetaTrader 5 terminal)
+- **Python**: 3.9+ 
+- **Node.js**: v16+ (or newer, to run the Vite React app)
+- **MetaTrader 5**: Desktop terminal installed with a valid account session
 
-Install dependencies:
+## Installation & Setup
 
-```powershell
-python -m venv .venv
-.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-```
+1. **Install Backend Dependencies**:
+   Navigate to the repository root:
+   ```powershell
+   python -m venv .venv
+   .venv\Scripts\Activate.ps1
+   pip install -r requirements.txt
+   ```
 
-## Setup
+2. **Install Frontend Dependencies**:
+   ```powershell
+   cd web
+   npm install
+   ```
 
-Copy environment template:
-
-```powershell
-Copy-Item .env.example .env
-```
-
-Then fill `.env` values.
-
-## Environment Variables (Important)
-
-### Shared
-- `TELEGRAM_BOT_TOKEN`
-- `TELEGRAM_CHAT_ID`
-- `MT5_LOGIN`
-- `MT5_PASSWORD`
-- `MT5_SERVER`
-
-### `screener_id.py`
-- Uses shared Telegram variables above for report delivery.
-- Universe source file: `stocklist.csv` (one symbol per line, e.g. `BBCA`; comments allowed with `#`).
-- If `stocklist.csv` has too few valid symbols, screener falls back to built-in IDX universe.
-
-### `robot_trade.py`
-- `MT5_SYMBOLS`
-- `MT5_RISK_PER_TRADE`
-- `MT5_MAGIC_NUMBER`
-- `MT5_MAX_DRAWDOWN_PERCENT`
-- `MT5_DRAWDOWN_PERIOD_HOURS`
-- `MT5_RUN_DURATION_MINUTES`
-- `MT5_REPORT_PERIOD_HOURS`
-- `MT5_ENTRY_TIMEFRAME` (example: `M1`)
-- `MT5_TREND_TIMEFRAME` (example: `M5`)
-- `MT5_ENABLE_JPY_TUNING`
-- `MT5_TRADING_MODE` (`conservative` | `normal` | `extreme`)
-- `ROBOT_LOG_LEVEL`
-- `ROBOT_LOG_FILE`
-
-### `robot_trade_sr.py`
-- `SR_STRATEGY`
-- `SR_SYMBOLS`
-- `SR_RUN_DURATION_MINUTES`
-- `SR_REPORT_PERIOD_DAYS`
-- `SR_SHOW_LEVELS`
-- `SR_ENABLE_MULTI_TIMEFRAME_SCALPING`
-- `SR_LOG_LEVEL`
-- `SR_LOG_FILE`
-
-### `robot_crt_po3.py`
-- `CRT_SYMBOL`
-- `CRT_TIMEFRAME`
-- `CRT_MAGIC_NUMBER`
-- `CRT_RISK_PERCENT`
-- `CRT_MAX_SPREAD`
-- `CRT_ANALYSIS_INTERVAL_SECONDS`
-- `CRT_REPORT_PERIOD_DAYS`
-- `CRT_LOG_LEVEL`
-- `CRT_LOG_FILE`
+3. **Environment Configuration**:
+   Copy the `env` file to set up necessary variables:
+   ```powershell
+   Copy-Item .env.example .env
+   ```
+   *Make sure to configure your actual MT5 login, tokens, and thresholds in `.env` before running.*
 
 ## How to Run
 
-### Trend bot
-```powershell
-python robot_trade.py
-```
+You can boot up the entire application stack using the provided 1-click startup scripts.
 
-### Support/Resistance bot
-```powershell
-python robot_trade_sr.py
-```
+- **For Windows**:
+  Run `start.bat`
+- **For Mac / Linux / WSL** (Development & Stock Screener Only):
+  Run `start.sh`
 
-### CRT PO3 bot
-```powershell
-python robot_crt_po3.py
-```
+The bootloader will launch two separate background processes:
+1. FastAPI Backend at `http://localhost:8000`
+2. React Web Interface at `http://localhost:5173`
 
-### Daily screener pipeline
-```powershell
-python command.py
-```
+Navigate to `http://localhost:5173` in your favorite web browser to see the dashboard. You will now be able to start/stop trading bots dynamically natively pressing buttons on the UI!
 
-### Refresh/export IDX universe only
-```powershell
-python manager.py
-```
+## Logs & Execution
+- All backend background process logs and direct `stdout/stderr` streams are captured securely inside the `backend/logs/` directory.
+- The web app endpoints live-poll these log payloads. They are streamed actively into the embedded terminal-equivalent UI inside the React dashboard, allowing real-time trading monitoring directly from your web browser!
 
-## Logs and Reports
-
-- MT5 bot logs are written to `logs/*.jsonl`
-- Screener exports:
-  - `screener_report.csv`
-  - `screener_report.json`
-
-## Notes
-
-- This project is experimental and not financial advice.
-- Always validate behavior on demo accounts first.
-- MT5 and market-data connectivity issues can affect execution/reporting.
+## Disclaimer
+This project is experimental and not financial advice. MT5 API wrappers and algorithmic scripts carry high risks. Always validate behavior rigorously on demo accounts first.

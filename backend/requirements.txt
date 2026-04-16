@@ -1,0 +1,10 @@
+MetaTrader5
+pandas
+numpy
+requests
+urllib3
+python-dotenv
+yfinance
+beautifulsoup4
+fastapi
+uvicorn
