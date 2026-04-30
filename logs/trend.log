@@ -1,20 +1,74 @@
-2026-04-16 12:09:51,097 - INFO - Starting trading bot with config: symbols=['XAUUSD', 'EURUSD'] run_duration_minutes=180 report_period_hours=4 trading_mode=extreme entry_tf=M1 trend_tf=M5
-2026-04-16 12:09:51,268 - INFO - Connected to MT5 account: 105187155
-2026-04-16 12:09:51,268 - INFO - Account balance: $100.18
-2026-04-16 12:09:51,268 - INFO - Account equity: $100.18
-2026-04-16 12:09:51,268 - INFO - Drawdown protection: Max 25.0% over 4 hours
-2026-04-16 12:09:51,268 - INFO - Starting MT5 Forex Robot for 180 minutes
-2026-04-16 12:09:51,268 - INFO - Trading symbols: ['XAUUSD', 'EURUSD']
-2026-04-16 12:09:51,268 - INFO - --- Trading Cycle ---
-2026-04-16 12:09:51,275 - INFO - Equity Monitor - Current: $100.18, Peak: $100.18, Drawdown: 0.00% (Max allowed: 25.0%)
-2026-04-16 12:09:51,348 - INFO - Signal: XAUUSD BUY | entry=4835.46000, SL=4832.81000, TP=4841.82000, RR=2.40, spread=0.17000, trend_strength=4.70, profile_rr_min=1.80
-2026-04-16 12:09:51,349 - INFO - XAUUSD: Signal = BUY
-2026-04-16 12:09:51,601 - INFO - Order successful: 8224316950 - Request executed
-2026-04-16 12:09:51,601 - INFO - BUY order placed for XAUUSD: Volume=0.01, Entry=4835.46000, SL=4832.81000, TP=4841.82000, RR=2.40 (planned 2.40)
-2026-04-16 12:09:51,640 - INFO - EURUSD: Signal = HOLD
-2026-04-16 12:10:51,649 - INFO - --- Trading Cycle ---
-2026-04-16 12:10:51,651 - INFO - Equity Monitor - Current: $100.56, Peak: $100.56, Drawdown: 0.00% (Max allowed: 25.0%)
-2026-04-16 12:10:51,652 - INFO - Position XAUUSD: Type=0, Volume=0.01, Profit=$0.38
-2026-04-16 12:10:51,722 - INFO - Market Scan: XAUUSD | Trend strength=4.78 | RSI=65.21 | Signal=HOLD
-2026-04-16 12:10:51,724 - INFO - XAUUSD: Signal = HOLD
-2026-04-16 12:10:51,750 - INFO - EURUSD: Signal = HOLD
+2026-04-29 23:32:17,756 - INFO - Starting trading bot with config: symbols=['XAUUSD', 'EURUSD'] run_duration_minutes=180 report_period_hours=4 trading_mode=extreme entry_tf=M1 trend_tf=M5
+2026-04-29 23:32:17,826 - INFO - Connected to MT5 account: 105187155
+2026-04-29 23:32:17,829 - INFO - Account balance: $97.38
+2026-04-29 23:32:17,830 - INFO - Account equity: $97.38
+2026-04-29 23:32:17,832 - INFO - Drawdown protection: Max 25.0% over 4 hours
+2026-04-29 23:32:17,834 - INFO - Starting MT5 Forex Robot for 180 minutes
+2026-04-29 23:32:17,835 - INFO - Trading symbols: ['XAUUSD', 'EURUSD']
+2026-04-29 23:32:17,836 - INFO - --- Trading Cycle ---
+2026-04-29 23:32:17,836 - INFO - Equity Monitor - Current: $97.38, Peak: $97.38, Drawdown: 0.00% (Max allowed: 25.0%)
+2026-04-29 23:32:17,926 - INFO - Market Scan: XAUUSD | Trend strength=3.12 | RSI=34.27 | Signal=HOLD
+2026-04-29 23:32:17,928 - INFO - XAUUSD: Signal = HOLD
+2026-04-29 23:32:18,008 - INFO - EURUSD: Signal = HOLD
+2026-04-29 23:33:18,011 - INFO - --- Trading Cycle ---
+2026-04-29 23:33:18,013 - INFO - Equity Monitor - Current: $97.38, Peak: $97.38, Drawdown: 0.00% (Max allowed: 25.0%)
+2026-04-29 23:33:18,046 - INFO - Market Scan: XAUUSD | Trend strength=3.05 | RSI=28.98 | Signal=HOLD
+2026-04-29 23:33:18,046 - INFO - XAUUSD: Signal = HOLD
+2026-04-29 23:33:18,078 - INFO - EURUSD: Signal = HOLD
+2026-04-29 23:34:18,090 - INFO - --- Trading Cycle ---
+2026-04-29 23:34:18,091 - INFO - Equity Monitor - Current: $97.38, Peak: $97.38, Drawdown: 0.00% (Max allowed: 25.0%)
+2026-04-29 23:34:18,120 - INFO - Market Scan: XAUUSD | Trend strength=2.97 | RSI=25.69 | Signal=HOLD
+2026-04-29 23:34:18,120 - INFO - XAUUSD: Signal = HOLD
+2026-04-29 23:34:18,152 - INFO - EURUSD: Signal = HOLD
+2026-04-29 23:35:18,163 - INFO - --- Trading Cycle ---
+2026-04-29 23:35:18,165 - INFO - Equity Monitor - Current: $97.38, Peak: $97.38, Drawdown: 0.00% (Max allowed: 25.0%)
+2026-04-29 23:35:18,195 - INFO - Market Scan: XAUUSD | Trend strength=2.95 | RSI=26.44 | Signal=HOLD
+2026-04-29 23:35:18,196 - INFO - XAUUSD: Signal = HOLD
+2026-04-29 23:35:18,223 - INFO - EURUSD: Signal = HOLD
+2026-04-29 23:36:18,232 - INFO - --- Trading Cycle ---
+2026-04-29 23:36:18,232 - INFO - Equity Monitor - Current: $97.38, Peak: $97.38, Drawdown: 0.00% (Max allowed: 25.0%)
+2026-04-29 23:36:18,276 - INFO - Market Scan: XAUUSD | Trend strength=2.86 | RSI=34.08 | Signal=HOLD
+2026-04-29 23:36:18,278 - INFO - XAUUSD: Signal = HOLD
+2026-04-29 23:36:18,306 - INFO - EURUSD: Signal = HOLD
+2026-04-29 23:37:18,311 - INFO - --- Trading Cycle ---
+2026-04-29 23:37:18,312 - INFO - Equity Monitor - Current: $97.38, Peak: $97.38, Drawdown: 0.00% (Max allowed: 25.0%)
+2026-04-29 23:37:18,344 - INFO - Market Scan: XAUUSD | Trend strength=2.82 | RSI=25.90 | Signal=HOLD
+2026-04-29 23:37:18,345 - INFO - XAUUSD: Signal = HOLD
+2026-04-29 23:37:18,368 - INFO - EURUSD: Signal = HOLD
+2026-04-29 23:38:18,370 - INFO - --- Trading Cycle ---
+2026-04-29 23:38:18,372 - INFO - Equity Monitor - Current: $97.38, Peak: $97.38, Drawdown: 0.00% (Max allowed: 25.0%)
+2026-04-29 23:38:18,396 - INFO - Market Scan: XAUUSD | Trend strength=2.72 | RSI=21.09 | Signal=HOLD
+2026-04-29 23:38:18,396 - INFO - XAUUSD: Signal = HOLD
+2026-04-29 23:38:18,431 - INFO - EURUSD: Signal = HOLD
+2026-04-29 23:39:18,436 - INFO - --- Trading Cycle ---
+2026-04-29 23:39:18,436 - INFO - Equity Monitor - Current: $97.38, Peak: $97.38, Drawdown: 0.00% (Max allowed: 25.0%)
+2026-04-29 23:39:18,469 - INFO - Market Scan: XAUUSD | Trend strength=2.71 | RSI=35.42 | Signal=HOLD
+2026-04-29 23:39:18,470 - INFO - XAUUSD: Signal = HOLD
+2026-04-29 23:39:18,496 - INFO - EURUSD: Signal = HOLD
+2026-04-29 23:40:18,508 - INFO - --- Trading Cycle ---
+2026-04-29 23:40:18,510 - INFO - Equity Monitor - Current: $97.38, Peak: $97.38, Drawdown: 0.00% (Max allowed: 25.0%)
+2026-04-29 23:40:18,548 - INFO - Market Scan: XAUUSD | Trend strength=3.09 | RSI=39.94 | Signal=HOLD
+2026-04-29 23:40:18,548 - INFO - XAUUSD: Signal = HOLD
+2026-04-29 23:40:18,580 - INFO - EURUSD: Signal = HOLD
+2026-04-29 23:41:18,591 - INFO - --- Trading Cycle ---
+2026-04-29 23:41:18,591 - INFO - Equity Monitor - Current: $97.38, Peak: $97.38, Drawdown: 0.00% (Max allowed: 25.0%)
+2026-04-29 23:41:18,621 - INFO - Market Scan: XAUUSD | Trend strength=3.04 | RSI=37.50 | Signal=HOLD
+2026-04-29 23:41:18,621 - INFO - XAUUSD: Signal = HOLD
+2026-04-29 23:41:18,642 - INFO - EURUSD: Signal = HOLD
+2026-04-30 02:42:19,943 - INFO - Trading bot stopped
+2026-04-30 02:42:23,190 - ERROR - Telegram send failed due to DNS/network name resolution. Please check internet/DNS settings, then retry.
+2026-04-30 02:42:23,201 - INFO - MT5 connection closed
+
+=== TRADING ROBOT STATISTICS ===
+Period: 2026-04-29 22:42:19 -> 2026-04-30 02:42:19
+Report Period Hours: 4
+Total Trades: 2
+Winning Trades: 1
+Losing Trades: 1
+Breakeven Trades: 0
+Win Rate: 50.00%
+Net Profit: -0.13
+Open Positions: 0
+Initial Balance: 97.38
+Current Balance: 97.38
+Last Closed Trade: 2026-04-30 02:29:56

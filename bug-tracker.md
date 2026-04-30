@@ -29,3 +29,10 @@
     3. Updated the UI `ForexPanel` in `App.jsx` to show an immediate `"Starting..."` state prior to the process becoming active.
     4. Integrated local logging console windows embedded in each bot's display card to feed live logs.
 - **Status**: **RESOLVED**
+
+## Bug 4
+- **Description**: `StockChart cannot load the chart. Error: 1 Failed download: ['TOOL.JK.JK']: YFPricesMissingError(...)`
+- **Location**: `backend/main.py`
+- **Root Cause**: The API endpoint `/api/screener/chart/{symbol}` unconditionally appended `.JK` to the `symbol` parameter (`ticker = f"{symbol}.JK"`). However, the `screener_report.json` data and the frontend already include the `.JK` suffix (e.g., `TOOL.JK`), resulting in the `yfinance` download attempting to fetch `TOOL.JK.JK`.
+- **Resolution**: Updated `get_screener_chart` in `backend/main.py` to conditionally append `.JK` only if it is not already present: `ticker = symbol if symbol.endswith(".JK") else f"{symbol}.JK"`.
+- **Status**: **RESOLVED**

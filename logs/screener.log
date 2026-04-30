@@ -37,43 +37,43 @@ Progress: 775/798
 Progress: 798/798
 
 ========================================================================================================================
-INDONESIAN DAILY TECHNICAL + VOLUME SCREENER (2026-04-16 16:54:55)
+INDONESIAN DAILY TECHNICAL + VOLUME SCREENER (2026-04-18 20:15:46)
 ========================================================================================================================
  symbol action  total_score  trend_score  volume_score close change_pct vol_ratio avg_vol_20d turnover_b rsi14  trend_up  macd_positive  breakout_20d                                                            notes
-CMNT.JK    ADD            8            5             3   810     +2.53%     1.88x  11,921,100      18.17  64.5      True           True          True near_breakout,strong_volume,momentum_confirmed,strong_daily_move
-NEST.JK    ADD            7            4             3   358     +2.87%     4.97x   1,003,420       1.78  59.8     False           True          True near_breakout,strong_volume,momentum_confirmed,strong_daily_move
-KAQI.JK  WATCH            7            4             3   125    +15.74%     3.48x 185,444,150      80.70  69.0      True           True         False               strong_volume,momentum_confirmed,strong_daily_move
-CFIN.JK  WATCH            7            4             3   344     +1.78%     3.39x   1,806,925       2.11  65.4      True           True         False                                 strong_volume,momentum_confirmed
-LEAD.JK    ADD            7            4             3   168    +14.29%     2.65x  65,967,940      29.40  62.5     False           True          True near_breakout,strong_volume,momentum_confirmed,strong_daily_move
-MSIN.JK  WATCH            7            4             3   960     +0.00%     2.23x  37,784,615      80.72  58.7      True           True         False                                 strong_volume,momentum_confirmed
-DEFI.JK    ADD            7            4             3   121    +34.44%     2.19x  37,306,930       9.90  64.9     False           True          True near_breakout,strong_volume,momentum_confirmed,strong_daily_move
-ADCP.JK    ADD            7            4             3    53     +1.92%     2.14x   8,882,985       1.01  65.7     False           True          True                   near_breakout,strong_volume,momentum_confirmed
-MTDL.JK    ADD            7            5             2   595     +1.71%     1.50x   1,767,790       1.58  59.8      True           True          True                                 near_breakout,momentum_confirmed
-MUTU.JK  WATCH            6            3             3   111     +6.73%    14.86x   5,140,910       8.48  68.0     False           True         False               strong_volume,momentum_confirmed,strong_daily_move
-EMDE.JK  WATCH            6            3             3    84    +15.07%    14.34x  13,463,745      16.22  61.7     False           True         False               strong_volume,momentum_confirmed,strong_daily_move
-LABA.JK  WATCH            6            3             3   157    +34.19%    14.23x  17,076,080      38.14  78.5     False           True          True                    near_breakout,strong_volume,strong_daily_move
-PJHB.JK  WATCH            6            3             3   276    +21.05%    13.35x   8,733,120      32.17  69.2     False           True         False               strong_volume,momentum_confirmed,strong_daily_move
-LPLI.JK  WATCH            6            3             3   332     +9.21%    10.70x     699,125       2.48  68.2     False           True         False               strong_volume,momentum_confirmed,strong_daily_move
-AGRS.JK  WATCH            6            3             3    73     +2.82%     9.82x   4,264,345       3.06  58.6     False           True         False               strong_volume,momentum_confirmed,strong_daily_move
-BEER.JK  WATCH            6            3             3   151     -6.79%     9.61x  29,315,655      42.56  51.5     False           True         False                                 strong_volume,momentum_confirmed
-SMIL.JK  WATCH            6            3             3   282    -14.55%     8.80x  12,942,355      32.13  57.0     False           True         False                                 strong_volume,momentum_confirmed
-KRYA.JK  WATCH            6            3             3    90    +34.33%     8.41x  74,810,315      56.59  73.0     False           True          True                    near_breakout,strong_volume,strong_daily_move
-BFIN.JK  WATCH            6            3             3   905    +24.83%     7.60x  25,248,745     173.67  79.8     False           True          True                    near_breakout,strong_volume,strong_daily_move
-KING.JK  WATCH            6            4             2   304     +9.35%     6.92x     392,865       0.83  79.6      True           True          True                    near_breakout,strong_volume,strong_daily_move
-KLAS.JK  WATCH            6            3             3    90     +5.88%     6.60x   8,689,890       5.16  64.6     False           True         False               strong_volume,momentum_confirmed,strong_daily_move
-ASGR.JK  WATCH            6            3             3 1,830     +6.71%     6.55x   1,284,845      15.41  69.9     False           True         False               strong_volume,momentum_confirmed,strong_daily_move
-KAEF.JK  WATCH            6            3             3   505     +2.64%     6.55x     485,575       1.61  65.6     False           True         False               strong_volume,momentum_confirmed,strong_daily_move
-ASLI.JK  WATCH            6            3             3   412     -3.29%     6.48x  16,984,375      45.33  66.1     False           True         False                                 strong_volume,momentum_confirmed
-ASHA.JK  WATCH            6            3             3    85     -8.60%     6.31x 155,131,055      83.18  60.4     False           True         False                                 strong_volume,momentum_confirmed
-AYLS.JK  WATCH            6            3             3   228    +29.55%     5.99x  12,059,405      16.46  61.0     False           True         False               strong_volume,momentum_confirmed,strong_daily_move
-BIPP.JK  WATCH            6            3             3    67     -9.46%     5.63x  23,739,985       8.95  54.4     False           True         False                                 strong_volume,momentum_confirmed
-SOFA.JK  WATCH            6            3             3   492     +0.00%     5.45x   4,745,735      12.74  56.2     False           True         False                                 strong_volume,momentum_confirmed
-NIKL.JK  WATCH            6            3             3   312     +1.30%     5.38x   2,240,570       3.76  53.9     False           True         False                                 strong_volume,momentum_confirmed
-GTRA.JK  WATCH            6            3             3   272     +7.09%     5.38x     758,885       1.11  58.5     False           True         False               strong_volume,momentum_confirmed,strong_daily_move
+NIRO.JK    ADD            7            4             3   256    +34.74%    14.77x     775,585       2.93  71.5     False           True          True near_breakout,strong_volume,momentum_confirmed,strong_daily_move
+PACK.JK    ADD            7            4             3   298     +9.56%     9.21x 139,842,475     383.68  65.0     False           True          True near_breakout,strong_volume,momentum_confirmed,strong_daily_move
+WMUU.JK  WATCH            7            4             3    79    -12.22%     8.40x 563,722,100     373.97  58.2      True           True         False                                 strong_volume,momentum_confirmed
+RISE.JK    ADD            7            4             3 2,380    +24.61%     7.20x   1,156,445      19.83  52.2     False           True          True near_breakout,strong_volume,momentum_confirmed,strong_daily_move
+KING.JK    ADD            7            4             3   334     +9.87%     5.90x     509,885       1.00  85.4      True           True          True                    near_breakout,strong_volume,strong_daily_move
+KETR.JK    ADD            7            4             3   555    +24.44%     5.84x  38,891,850     126.00  64.9     False           True          True near_breakout,strong_volume,momentum_confirmed,strong_daily_move
+YELO.JK  WATCH            7            4             3   113     -3.42%     3.96x 242,501,765     108.64  56.0      True           True         False                                 strong_volume,momentum_confirmed
+TLDN.JK    ADD            7            4             3   670     +3.08%     2.23x   1,014,460       1.52  65.5     False           True          True near_breakout,strong_volume,momentum_confirmed,strong_daily_move
+MTDL.JK  WATCH            7            4             3   600     +0.84%     2.13x   1,862,335       2.38  61.6      True           True         False                                 strong_volume,momentum_confirmed
+BNGA.JK    ADD            7            4             3 1,855     +1.64%     1.88x   3,627,220      12.65  62.7     False           True          True                   near_breakout,strong_volume,momentum_confirmed
+KAQI.JK  WATCH            7            4             3   115     -8.00%     1.81x 199,102,235      41.43  60.1      True           True         False                                 strong_volume,momentum_confirmed
+SEMA.JK  WATCH            6            3             3   123     +9.82%    11.83x   3,852,770       5.60  66.3     False           True         False               strong_volume,momentum_confirmed,strong_daily_move
+AGRO.JK  WATCH            6            3             3   204    -11.30%    11.66x  52,824,875     125.62  58.2     False           True         False                                 strong_volume,momentum_confirmed
+BCIP.JK  WATCH            6            3             3    77     +8.45%    10.79x  14,726,240      12.24  61.9     False           True         False               strong_volume,momentum_confirmed,strong_daily_move
+MBTO.JK  WATCH            6            3             3   129     +8.40%    10.64x   4,721,005       6.48  61.9     False           True         False               strong_volume,momentum_confirmed,strong_daily_move
+PADA.JK  WATCH            6            3             3   181    +20.67%     9.26x  43,408,165      72.74  62.9     False           True         False               strong_volume,momentum_confirmed,strong_daily_move
+WAPO.JK  WATCH            6            3             3   151     +6.34%     8.84x   2,184,190       2.92  64.0     False           True         False               strong_volume,momentum_confirmed,strong_daily_move
+LAND.JK  WATCH            6            3             3    66     +6.45%     7.76x  25,512,310      13.07  57.4     False           True         False               strong_volume,momentum_confirmed,strong_daily_move
+DEFI.JK  WATCH            6            3             3   163    +34.71%     7.64x  58,097,040      72.40  74.2     False           True          True                    near_breakout,strong_volume,strong_daily_move
+DOOH.JK  WATCH            6            3             3   180    +19.21%     7.59x  75,150,610     102.74  65.8     False           True         False               strong_volume,momentum_confirmed,strong_daily_move
+INDX.JK  WATCH            6            3             3   121    +11.01%     7.56x  13,938,220      12.75  62.5     False           True         False               strong_volume,momentum_confirmed,strong_daily_move
+KRYA.JK  WATCH            6            3             3    81    -10.00%     6.93x 109,274,070      61.30  61.7     False           True         False                                 strong_volume,momentum_confirmed
+KOTA.JK  WATCH            6            3             3    70     +6.06%     6.56x 108,162,865      49.67  64.1     False           True         False               strong_volume,momentum_confirmed,strong_daily_move
+AKSI.JK  WATCH            6            3             3   364    +19.74%     6.12x     504,280       1.12  67.3     False           True         False               strong_volume,momentum_confirmed,strong_daily_move
+VOKS.JK  WATCH            6            3             3   236     +1.72%     5.65x   1,370,840       1.83  57.0     False           True         False                                 strong_volume,momentum_confirmed
+LABA.JK  WATCH            6            3             3   141    -10.19%     5.30x  22,873,810      17.09  63.6     False           True         False                                 strong_volume,momentum_confirmed
+BFIN.JK  WATCH            6            3             3   870     -3.87%     4.84x  32,131,840     135.25  71.4     False           True         False                                 strong_volume,momentum_confirmed
+KIOS.JK  WATCH            6            3             3   123     +2.50%     4.83x  24,715,490      14.68  57.9     False           True         False               strong_volume,momentum_confirmed,strong_daily_move
+PIPA.JK  WATCH            6            3             3   145     +1.40%     4.64x  20,653,115      13.90  57.0     False           True         False                                 strong_volume,momentum_confirmed
+IMJS.JK  WATCH            6            3             3   200    -11.50%     4.03x  21,051,290      16.97  60.7     False           True         False                                 strong_volume,momentum_confirmed
 
 Decision Summary:
-ADD candidates    : 6
-WATCH candidates  : 187
-MONITOR candidates: 442
+ADD candidates    : 7
+WATCH candidates  : 165
+MONITOR candidates: 465
 Report exported: screener_report.csv, screener_report.json
 Telegram screener report sent successfully.
