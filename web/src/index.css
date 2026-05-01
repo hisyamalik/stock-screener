@@ -13,6 +13,30 @@
   --warning: #f59e0b;
 }
 
+[data-theme='light'] {
+  --bg-color: #f1f5f9;
+  --bg-gradient: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-border: rgba(0, 0, 0, 0.08);
+  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.05);
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --accent-color: #3b82f6;
+  --accent-hover: #2563eb;
+}
+
+[data-theme='warm'] {
+  --bg-color: #fffbeb;
+  --bg-gradient: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+  --glass-bg: rgba(255, 251, 235, 0.7);
+  --glass-border: rgba(180, 83, 9, 0.08);
+  --glass-shadow: 0 8px 32px 0 rgba(180, 83, 9, 0.05);
+  --text-primary: #451a03;
+  --text-secondary: #78350f;
+  --accent-color: #d97706;
+  --accent-hover: #b45309;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -341,7 +365,7 @@ body {
 
 .symbol-cell {
   font-weight: 700;
-  color: #fff;
+  color: var(--text-primary);
   letter-spacing: 0.05em;
 }
 
@@ -449,4 +473,77 @@ body {
   color: #a7f3d0;
   white-space: pre-wrap;
   margin: 0;
+}
+
+/* Global Indices Ticker */
+.indices-ticker {
+  display: flex;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.1);
+  border-top: 1px solid var(--glass-border);
+  border-bottom: 1px solid var(--glass-border);
+  padding: 8px 0;
+  white-space: nowrap;
+  margin-bottom: 24px;
+}
+
+.ticker-content {
+  display: flex;
+  gap: 32px;
+  padding: 0 16px;
+  animation: scrollTicker 60s linear infinite;
+}
+
+.ticker-content:hover {
+  animation-play-state: paused;
+}
+
+.ticker-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.ticker-symbol {
+  color: var(--text-primary);
+}
+
+.ticker-price {
+  color: var(--text-secondary);
+}
+
+.ticker-change {
+  font-weight: 600;
+}
+
+.ticker-change.positive {
+  color: var(--success);
+}
+
+.ticker-change.negative {
+  color: var(--danger);
+}
+
+@keyframes scrollTicker {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+/* Theme Select */
+.theme-select {
+  background: var(--glass-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 0.9rem;
+  outline: none;
+  cursor: pointer;
+}
+
+.theme-select option {
+  background: var(--bg-color);
+  color: var(--text-primary);
 }

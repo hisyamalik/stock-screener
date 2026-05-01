@@ -7,6 +7,15 @@ const API_BASE = "http://localhost:8000/api";
 
 function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [theme, setTheme] = useState('dark');
+
+  useEffect(() => {
+    if (theme === 'dark') {
+      document.documentElement.removeAttribute('data-theme');
+    } else {
+      document.documentElement.setAttribute('data-theme', theme);
+    }
+  }, [theme]);
   
   return (
     <div className="app-container">
@@ -35,7 +44,7 @@ function App() {
         </header>
 
         <div className="content-area">
-          {activeTab === 'dashboard' && <Dashboard />}
+          {activeTab === 'dashboard' && <Dashboard theme={theme} setTheme={setTheme} />}
           {activeTab === 'forex' && <ForexPanel />}
           {activeTab === 'screener' && <ScreenerPanel />}
         </div>
@@ -44,20 +53,86 @@ function App() {
   );
 }
 
-function Dashboard() {
+function GlobalIndices() {
+  const [indices, setIndices] = useState([]);
+
+  const fetchIndices = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/dashboard/indices`);
+      const data = await res.json();
+      setIndices(data);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  useEffect(() => {
+    fetchIndices();
+    const interval = setInterval(fetchIndices, 60000); // every 1 minute
+    return () => clearInterval(interval);
+  }, []);
+
+  if (indices.length === 0) return null;
+
   return (
-    <div className="dashboard-grid">
-      <div className="dashboard-card glass-panel fade-in">
-        <h3>System Status</h3>
-        <p className="status-text healthy">All Systems Operational</p>
+    <div className="indices-ticker fade-in">
+      <div className="ticker-content">
+        {indices.map((item, i) => (
+          <div key={i} className="ticker-item">
+            <span className="ticker-symbol">{item.symbol}</span>
+            <span className="ticker-price">{item.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            <span className={`ticker-change ${item.change_pct > 0 ? 'positive' : item.change_pct < 0 ? 'negative' : ''}`}>
+              {item.change_pct > 0 ? '+' : ''}{item.change_pct.toFixed(2)}%
+            </span>
+          </div>
+        ))}
+        {/* Duplicate for seamless scrolling */}
+        {indices.map((item, i) => (
+          <div key={`dup-${i}`} className="ticker-item">
+            <span className="ticker-symbol">{item.symbol}</span>
+            <span className="ticker-price">{item.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            <span className={`ticker-change ${item.change_pct > 0 ? 'positive' : item.change_pct < 0 ? 'negative' : ''}`}>
+              {item.change_pct > 0 ? '+' : ''}{item.change_pct.toFixed(2)}%
+            </span>
+          </div>
+        ))}
       </div>
-      <div className="dashboard-card glass-panel fade-in delay-1">
-        <h3>Active Bots</h3>
-        <p className="big-number">0</p>
+    </div>
+  );
+}
+
+function Dashboard({ theme, setTheme }) {
+  const today = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+  return (
+    <div className="dashboard-container" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+      <div className="dashboard-header glass-panel fade-in" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', marginBottom: '8px' }}>
+        <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '600' }}>Trading System Overview</h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
+          <span style={{ color: 'var(--text-secondary)', fontWeight: '500' }}>{today}</span>
+          <select className="theme-select" value={theme} onChange={(e) => setTheme(e.target.value)}>
+            <option value="dark">Dark Theme</option>
+            <option value="light">Light Theme</option>
+            <option value="warm">Warm Theme</option>
+          </select>
+        </div>
       </div>
-      <div className="dashboard-card glass-panel fade-in delay-2">
-        <h3>Latest Screener Results</h3>
-        <p className="status-text warning">Run required</p>
+      
+      <GlobalIndices />
+
+      <div className="dashboard-grid">
+        <div className="dashboard-card glass-panel fade-in delay-1">
+          <h3>System Status</h3>
+          <p className="status-text healthy">All Systems Operational</p>
+        </div>
+        <div className="dashboard-card glass-panel fade-in delay-2">
+          <h3>Active Bots</h3>
+          <p className="big-number">0</p>
+        </div>
+        <div className="dashboard-card glass-panel fade-in delay-2">
+          <h3>Latest Screener Results</h3>
+          <p className="status-text warning">Run required</p>
+        </div>
       </div>
     </div>
   );

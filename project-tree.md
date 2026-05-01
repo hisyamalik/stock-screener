@@ -1,6 +1,6 @@
 # Project Structure
 
-*(Last Updated: 2026-04-29)*
+*(Last Updated: 2026-04-30)*
 
 This document outlines the architecture for the Quantitative Trading Dashboard.
 The project is divided into an isolated Python backend (FastAPI) and a modern Vite/React frontend.

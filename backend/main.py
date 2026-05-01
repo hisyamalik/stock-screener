@@ -35,6 +35,52 @@ def ping():
     return {"status": "ok"}
 
 # ====================
+# DASHBOARD API
+# ====================
+GLOBAL_INDICES = ["^JKSE", "^DJI", "^IXIC", "^N225", "^HSI", "000001.SS", "^GDAXI", "^FTSE", "KS11", "GC=F", "BTC-USD", "ETH-USD", "EURUSD=X", "GBPUSD=X"]
+
+@app.get("/api/dashboard/indices")
+def get_dashboard_indices():
+    try:
+        tickers_str = " ".join(GLOBAL_INDICES)
+        df = yf.download(tickers_str, period="5d", progress=False)
+        results = []
+        
+        if df.empty:
+            return results
+            
+        # Extract 'Close' prices
+        close_df = df["Close"] if "Close" in df.columns.get_level_values(0) else df
+
+        for symbol in GLOBAL_INDICES:
+            try:
+                # yfinance might strip suffixes or rename, but usually keeps the symbol in columns
+                col_name = symbol
+                if col_name in close_df.columns:
+                    series = close_df[col_name].dropna()
+                    if len(series) >= 2:
+                        current = float(series.iloc[-1])
+                        prev_close = float(series.iloc[-2])
+                        change_pct = ((current - prev_close) / prev_close) * 100
+                        results.append({
+                            "symbol": symbol,
+                            "price": current,
+                            "change_pct": change_pct
+                        })
+                    elif len(series) == 1:
+                        current = float(series.iloc[-1])
+                        results.append({
+                            "symbol": symbol,
+                            "price": current,
+                            "change_pct": 0.0
+                        })
+            except Exception:
+                pass
+        return results
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ====================
 # STOCK SCREENER API
 # ====================
 @app.get("/api/screener/status")

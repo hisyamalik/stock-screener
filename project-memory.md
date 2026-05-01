@@ -34,6 +34,11 @@ This repository originally contained a mixture of standalone Python CLI scripts 
    - Redesigned `StockChart` layout so that MACD and RSI indicators stack cleanly beneath the price action chart for proper vertical visual comparison (IMP-006).
    - Added interactive time period selectors (1M, 3M, 6M, 1Y, 2Y, 5Y, MAX) to the Stock Screener charts, dynamically fetching matching intervals from the backend (IMP-007).
 
+8. **Dashboard Redesign & Theming (IMP-008 to IMP-011)**
+   - **Chart Alignment (IMP-008 & IMP-009)**: Synchronized X-axes and standardized Y-axis widths across Price, MACD, and RSI charts in `StockChart` for perfect vertical alignment. Ensured dates render without truncation.
+   - **Theme Switching (IMP-010)**: Implemented a robust CSS-variable-based theme engine supporting Dark, Light, and Warm modes. SVG charts dynamically inherit theme colors without forcing React re-renders.
+   - **Global Indices & Overview (IMP-011)**: Redesigned the Dashboard with a "Trading System Overview" header, live date, and theme selector. Built a fast `/api/dashboard/indices` FastAPI endpoint fetching 14 global indices via `yfinance`, feeding a continuous scrolling ticker tape that updates every minute.
+
 ## Next Steps / Future Work
 - IMP-001: Implementing configuration editing (modifying `.env` variables) directly from the React dashboard.
 
@@ -41,3 +46,4 @@ This repository originally contained a mixture of standalone Python CLI scripts 
 - A centralized bug-tracking file (`bug-tracker.md`) was created to properly isolate bugs and trace their debugging workflows and resolutions.
 - The recent `uvicorn` startup bug, as well as unresponsive UI buttons in the React app (caused by an uncaptured synchronous thread delay + no feedback states), have been successfully diagnosed and resolved in `bug-tracker.md`.
 - Bug 4: Fixed a double `.JK` suffix issue causing the `StockChart` component to fail fetching data from Yahoo Finance (`TOOL.JK.JK`). The backend now conditionally checks the ticker string before downloading data.
+- Bug 5: Fixed an issue where the stock symbol text in the Screener Panel table became invisible in Light/Warm themes by replacing hardcoded white `#fff` with dynamic CSS variables `var(--text-primary)`.

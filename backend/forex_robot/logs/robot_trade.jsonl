@@ -247,3 +247,211 @@
 {"timestamp": "2026-04-29T19:42:19Z", "level": "INFO", "logger": "__main__", "message": "Trading bot stopped"}
 {"timestamp": "2026-04-29T19:42:23Z", "level": "ERROR", "logger": "__main__", "message": "Telegram send failed due to DNS/network name resolution. Please check internet/DNS settings, then retry."}
 {"timestamp": "2026-04-29T19:42:23Z", "level": "INFO", "logger": "__main__", "message": "MT5 connection closed"}
+{"timestamp": "2026-04-30T11:08:53Z", "level": "INFO", "logger": "__main__", "message": "Starting trading bot with config: symbols=['XAUUSD', 'EURUSD'] run_duration_minutes=180 report_period_hours=4 trading_mode=extreme entry_tf=M1 trend_tf=M5"}
+{"timestamp": "2026-04-30T11:08:53Z", "level": "INFO", "logger": "__main__", "message": "Connected to MT5 account: 105187155"}
+{"timestamp": "2026-04-30T11:08:53Z", "level": "INFO", "logger": "__main__", "message": "Account balance: $97.38"}
+{"timestamp": "2026-04-30T11:08:53Z", "level": "INFO", "logger": "__main__", "message": "Account equity: $97.38"}
+{"timestamp": "2026-04-30T11:08:53Z", "level": "INFO", "logger": "__main__", "message": "Drawdown protection: Max 25.0% over 4 hours"}
+{"timestamp": "2026-04-30T11:08:53Z", "level": "INFO", "logger": "__main__", "message": "Starting MT5 Forex Robot for 180 minutes"}
+{"timestamp": "2026-04-30T11:08:53Z", "level": "INFO", "logger": "__main__", "message": "Trading symbols: ['XAUUSD', 'EURUSD']"}
+{"timestamp": "2026-04-30T11:08:53Z", "level": "INFO", "logger": "__main__", "message": "--- Trading Cycle ---"}
+{"timestamp": "2026-04-30T11:08:53Z", "level": "INFO", "logger": "__main__", "message": "Equity Monitor - Current: $97.38, Peak: $97.38, Drawdown: 0.00% (Max allowed: 25.0%)"}
+{"timestamp": "2026-04-30T11:08:53Z", "level": "INFO", "logger": "__main__", "message": "Signal: XAUUSD BUY | entry=4641.29000, SL=4637.47000, TP=4650.45000, RR=2.40, spread=0.17000, trend_strength=7.30, profile_rr_min=1.80"}
+{"timestamp": "2026-04-30T11:08:53Z", "level": "INFO", "logger": "__main__", "message": "XAUUSD: Signal = BUY"}
+{"timestamp": "2026-04-30T11:08:53Z", "level": "INFO", "logger": "__main__", "message": "Order successful: 8433402176 - Request executed"}
+{"timestamp": "2026-04-30T11:08:53Z", "level": "INFO", "logger": "__main__", "message": "BUY order placed for XAUUSD: Volume=0.01, Entry=4641.29000, SL=4637.47000, TP=4650.45000, RR=2.40 (planned 2.40)"}
+{"timestamp": "2026-04-30T11:08:54Z", "level": "INFO", "logger": "__main__", "message": "Market Scan: EURUSD | Trend strength=2.10 | RSI=34.92 | Signal=HOLD"}
+{"timestamp": "2026-04-30T11:08:54Z", "level": "INFO", "logger": "__main__", "message": "EURUSD: Signal = HOLD"}
+{"timestamp": "2026-04-30T11:09:54Z", "level": "INFO", "logger": "__main__", "message": "--- Trading Cycle ---"}
+{"timestamp": "2026-04-30T11:09:54Z", "level": "INFO", "logger": "__main__", "message": "Equity Monitor - Current: $99.74, Peak: $99.74, Drawdown: 0.00% (Max allowed: 25.0%)"}
+{"timestamp": "2026-04-30T11:09:54Z", "level": "INFO", "logger": "__main__", "message": "Market Scan: XAUUSD | Trend strength=6.88 | RSI=69.95 | Signal=HOLD"}
+{"timestamp": "2026-04-30T11:09:54Z", "level": "INFO", "logger": "__main__", "message": "XAUUSD: Signal = HOLD"}
+{"timestamp": "2026-04-30T11:09:54Z", "level": "INFO", "logger": "__main__", "message": "Market Scan: EURUSD | Trend strength=2.04 | RSI=36.54 | Signal=HOLD"}
+{"timestamp": "2026-04-30T11:09:54Z", "level": "INFO", "logger": "__main__", "message": "EURUSD: Signal = HOLD"}
+{"timestamp": "2026-04-30T11:10:54Z", "level": "INFO", "logger": "__main__", "message": "--- Trading Cycle ---"}
+{"timestamp": "2026-04-30T11:10:54Z", "level": "INFO", "logger": "__main__", "message": "Equity Monitor - Current: $99.74, Peak: $99.74, Drawdown: 0.00% (Max allowed: 25.0%)"}
+{"timestamp": "2026-04-30T11:10:54Z", "level": "INFO", "logger": "__main__", "message": "Market Scan: XAUUSD | Trend strength=7.52 | RSI=66.90 | Signal=HOLD"}
+{"timestamp": "2026-04-30T11:10:54Z", "level": "INFO", "logger": "__main__", "message": "XAUUSD: Signal = HOLD"}
+{"timestamp": "2026-04-30T11:10:54Z", "level": "INFO", "logger": "__main__", "message": "EURUSD: Signal = HOLD"}
+{"timestamp": "2026-04-30T11:11:54Z", "level": "INFO", "logger": "__main__", "message": "--- Trading Cycle ---"}
+{"timestamp": "2026-04-30T11:11:54Z", "level": "INFO", "logger": "__main__", "message": "Equity Monitor - Current: $99.74, Peak: $99.74, Drawdown: 0.00% (Max allowed: 25.0%)"}
+{"timestamp": "2026-04-30T11:11:54Z", "level": "INFO", "logger": "__main__", "message": "Market Scan: XAUUSD | Trend strength=7.41 | RSI=59.43 | Signal=HOLD"}
+{"timestamp": "2026-04-30T11:11:54Z", "level": "INFO", "logger": "__main__", "message": "XAUUSD: Signal = HOLD"}
+{"timestamp": "2026-04-30T11:11:54Z", "level": "INFO", "logger": "__main__", "message": "Market Scan: EURUSD | Trend strength=2.08 | RSI=33.80 | Signal=HOLD"}
+{"timestamp": "2026-04-30T11:11:54Z", "level": "INFO", "logger": "__main__", "message": "EURUSD: Signal = HOLD"}
+{"timestamp": "2026-04-30T11:12:54Z", "level": "INFO", "logger": "__main__", "message": "--- Trading Cycle ---"}
+{"timestamp": "2026-04-30T11:12:54Z", "level": "INFO", "logger": "__main__", "message": "Equity Monitor - Current: $99.74, Peak: $99.74, Drawdown: 0.00% (Max allowed: 25.0%)"}
+{"timestamp": "2026-04-30T11:12:54Z", "level": "INFO", "logger": "__main__", "message": "Market Scan: XAUUSD | Trend strength=7.38 | RSI=64.72 | Signal=HOLD"}
+{"timestamp": "2026-04-30T11:12:54Z", "level": "INFO", "logger": "__main__", "message": "XAUUSD: Signal = HOLD"}
+{"timestamp": "2026-04-30T11:12:54Z", "level": "INFO", "logger": "__main__", "message": "EURUSD: Signal = HOLD"}
+{"timestamp": "2026-04-30T11:13:54Z", "level": "INFO", "logger": "__main__", "message": "--- Trading Cycle ---"}
+{"timestamp": "2026-04-30T11:13:54Z", "level": "INFO", "logger": "__main__", "message": "Equity Monitor - Current: $99.74, Peak: $99.74, Drawdown: 0.00% (Max allowed: 25.0%)"}
+{"timestamp": "2026-04-30T11:13:54Z", "level": "INFO", "logger": "__main__", "message": "Market Scan: XAUUSD | Trend strength=7.01 | RSI=44.26 | Signal=HOLD"}
+{"timestamp": "2026-04-30T11:13:54Z", "level": "INFO", "logger": "__main__", "message": "XAUUSD: Signal = HOLD"}
+{"timestamp": "2026-04-30T11:13:54Z", "level": "INFO", "logger": "__main__", "message": "Market Scan: EURUSD | Trend strength=1.99 | RSI=50.53 | Signal=HOLD"}
+{"timestamp": "2026-04-30T11:13:54Z", "level": "INFO", "logger": "__main__", "message": "EURUSD: Signal = HOLD"}
+{"timestamp": "2026-04-30T11:14:54Z", "level": "INFO", "logger": "__main__", "message": "--- Trading Cycle ---"}
+{"timestamp": "2026-04-30T11:14:54Z", "level": "INFO", "logger": "__main__", "message": "Equity Monitor - Current: $99.74, Peak: $99.74, Drawdown: 0.00% (Max allowed: 25.0%)"}
+{"timestamp": "2026-04-30T11:14:54Z", "level": "INFO", "logger": "__main__", "message": "Market Scan: XAUUSD | Trend strength=6.72 | RSI=37.45 | Signal=HOLD"}
+{"timestamp": "2026-04-30T11:14:54Z", "level": "INFO", "logger": "__main__", "message": "XAUUSD: Signal = HOLD"}
+{"timestamp": "2026-04-30T11:14:54Z", "level": "INFO", "logger": "__main__", "message": "Market Scan: EURUSD | Trend strength=1.99 | RSI=45.73 | Signal=HOLD"}
+{"timestamp": "2026-04-30T11:14:54Z", "level": "INFO", "logger": "__main__", "message": "EURUSD: Signal = HOLD"}
+{"timestamp": "2026-04-30T11:15:54Z", "level": "INFO", "logger": "__main__", "message": "--- Trading Cycle ---"}
+{"timestamp": "2026-04-30T11:15:54Z", "level": "INFO", "logger": "__main__", "message": "Equity Monitor - Current: $99.74, Peak: $99.74, Drawdown: 0.00% (Max allowed: 25.0%)"}
+{"timestamp": "2026-04-30T11:15:54Z", "level": "INFO", "logger": "__main__", "message": "Market Scan: XAUUSD | Trend strength=7.69 | RSI=38.86 | Signal=HOLD"}
+{"timestamp": "2026-04-30T11:15:54Z", "level": "INFO", "logger": "__main__", "message": "XAUUSD: Signal = HOLD"}
+{"timestamp": "2026-04-30T11:15:54Z", "level": "INFO", "logger": "__main__", "message": "Market Scan: EURUSD | Trend strength=2.36 | RSI=51.12 | Signal=HOLD"}
+{"timestamp": "2026-04-30T11:15:54Z", "level": "INFO", "logger": "__main__", "message": "EURUSD: Signal = HOLD"}
+{"timestamp": "2026-04-30T11:16:54Z", "level": "INFO", "logger": "__main__", "message": "--- Trading Cycle ---"}
+{"timestamp": "2026-04-30T11:16:54Z", "level": "INFO", "logger": "__main__", "message": "Equity Monitor - Current: $99.74, Peak: $99.74, Drawdown: 0.00% (Max allowed: 25.0%)"}
+{"timestamp": "2026-04-30T11:16:54Z", "level": "INFO", "logger": "__main__", "message": "Market Scan: XAUUSD | Trend strength=7.42 | RSI=37.87 | Signal=HOLD"}
+{"timestamp": "2026-04-30T11:16:54Z", "level": "INFO", "logger": "__main__", "message": "XAUUSD: Signal = HOLD"}
+{"timestamp": "2026-04-30T11:16:54Z", "level": "INFO", "logger": "__main__", "message": "Market Scan: EURUSD | Trend strength=2.32 | RSI=52.52 | Signal=HOLD"}
+{"timestamp": "2026-04-30T11:16:54Z", "level": "INFO", "logger": "__main__", "message": "EURUSD: Signal = HOLD"}
+{"timestamp": "2026-04-30T11:17:54Z", "level": "INFO", "logger": "__main__", "message": "--- Trading Cycle ---"}
+{"timestamp": "2026-04-30T11:17:54Z", "level": "INFO", "logger": "__main__", "message": "Equity Monitor - Current: $99.74, Peak: $99.74, Drawdown: 0.00% (Max allowed: 25.0%)"}
+{"timestamp": "2026-04-30T11:17:54Z", "level": "INFO", "logger": "__main__", "message": "Market Scan: XAUUSD | Trend strength=7.37 | RSI=33.33 | Signal=HOLD"}
+{"timestamp": "2026-04-30T11:17:54Z", "level": "INFO", "logger": "__main__", "message": "XAUUSD: Signal = HOLD"}
+{"timestamp": "2026-04-30T11:17:54Z", "level": "INFO", "logger": "__main__", "message": "Market Scan: EURUSD | Trend strength=2.30 | RSI=50.65 | Signal=HOLD"}
+{"timestamp": "2026-04-30T11:17:54Z", "level": "INFO", "logger": "__main__", "message": "EURUSD: Signal = HOLD"}
+{"timestamp": "2026-04-30T11:18:54Z", "level": "INFO", "logger": "__main__", "message": "--- Trading Cycle ---"}
+{"timestamp": "2026-04-30T11:18:54Z", "level": "INFO", "logger": "__main__", "message": "Equity Monitor - Current: $99.74, Peak: $99.74, Drawdown: 0.00% (Max allowed: 25.0%)"}
+{"timestamp": "2026-04-30T11:18:54Z", "level": "INFO", "logger": "__main__", "message": "Market Scan: XAUUSD | Trend strength=7.31 | RSI=38.79 | Signal=HOLD"}
+{"timestamp": "2026-04-30T11:18:54Z", "level": "INFO", "logger": "__main__", "message": "XAUUSD: Signal = HOLD"}
+{"timestamp": "2026-04-30T11:18:54Z", "level": "INFO", "logger": "__main__", "message": "EURUSD: Signal = HOLD"}
+{"timestamp": "2026-04-30T11:19:54Z", "level": "INFO", "logger": "__main__", "message": "--- Trading Cycle ---"}
+{"timestamp": "2026-04-30T11:19:54Z", "level": "INFO", "logger": "__main__", "message": "Equity Monitor - Current: $99.74, Peak: $99.74, Drawdown: 0.00% (Max allowed: 25.0%)"}
+{"timestamp": "2026-04-30T11:19:54Z", "level": "INFO", "logger": "__main__", "message": "Market Scan: XAUUSD | Trend strength=7.31 | RSI=39.59 | Signal=HOLD"}
+{"timestamp": "2026-04-30T11:19:54Z", "level": "INFO", "logger": "__main__", "message": "XAUUSD: Signal = HOLD"}
+{"timestamp": "2026-04-30T11:19:54Z", "level": "INFO", "logger": "__main__", "message": "Market Scan: EURUSD | Trend strength=2.23 | RSI=55.32 | Signal=HOLD"}
+{"timestamp": "2026-04-30T11:19:54Z", "level": "INFO", "logger": "__main__", "message": "EURUSD: Signal = HOLD"}
+{"timestamp": "2026-04-30T11:20:54Z", "level": "INFO", "logger": "__main__", "message": "--- Trading Cycle ---"}
+{"timestamp": "2026-04-30T11:20:54Z", "level": "INFO", "logger": "__main__", "message": "Equity Monitor - Current: $99.74, Peak: $99.74, Drawdown: 0.00% (Max allowed: 25.0%)"}
+{"timestamp": "2026-04-30T11:20:54Z", "level": "INFO", "logger": "__main__", "message": "Market Scan: XAUUSD | Trend strength=8.23 | RSI=49.56 | Signal=HOLD"}
+{"timestamp": "2026-04-30T11:20:54Z", "level": "INFO", "logger": "__main__", "message": "XAUUSD: Signal = HOLD"}
+{"timestamp": "2026-04-30T11:20:54Z", "level": "INFO", "logger": "__main__", "message": "Signal: EURUSD BUY | entry=1.17139, SL=1.17095, TP=1.17237, RR=2.20, spread=0.00002, trend_strength=2.44, profile_rr_min=1.60"}
+{"timestamp": "2026-04-30T11:20:54Z", "level": "INFO", "logger": "__main__", "message": "EURUSD: Signal = BUY"}
+{"timestamp": "2026-04-30T11:20:55Z", "level": "INFO", "logger": "__main__", "message": "Order successful: 8433648138 - Request executed"}
+{"timestamp": "2026-04-30T11:20:55Z", "level": "INFO", "logger": "__main__", "message": "BUY order placed for EURUSD: Volume=0.01, Entry=1.17139, SL=1.17095, TP=1.17237, RR=2.23 (planned 2.20)"}
+{"timestamp": "2026-04-30T11:21:55Z", "level": "INFO", "logger": "__main__", "message": "--- Trading Cycle ---"}
+{"timestamp": "2026-04-30T11:21:55Z", "level": "INFO", "logger": "__main__", "message": "Equity Monitor - Current: $99.60, Peak: $99.74, Drawdown: 0.14% (Max allowed: 25.0%)"}
+{"timestamp": "2026-04-30T11:21:55Z", "level": "INFO", "logger": "__main__", "message": "Position EURUSD: Type=0, Volume=0.01, Profit=$-0.14"}
+{"timestamp": "2026-04-30T11:21:55Z", "level": "INFO", "logger": "__main__", "message": "Market Scan: XAUUSD | Trend strength=8.01 | RSI=52.14 | Signal=HOLD"}
+{"timestamp": "2026-04-30T11:21:55Z", "level": "INFO", "logger": "__main__", "message": "XAUUSD: Signal = HOLD"}
+{"timestamp": "2026-04-30T11:21:55Z", "level": "INFO", "logger": "__main__", "message": "Market Scan: EURUSD | Trend strength=2.43 | RSI=59.17 | Signal=HOLD"}
+{"timestamp": "2026-04-30T11:21:55Z", "level": "INFO", "logger": "__main__", "message": "EURUSD: Signal = HOLD"}
+{"timestamp": "2026-04-30T11:22:55Z", "level": "INFO", "logger": "__main__", "message": "--- Trading Cycle ---"}
+{"timestamp": "2026-04-30T11:22:55Z", "level": "INFO", "logger": "__main__", "message": "Equity Monitor - Current: $99.92, Peak: $99.92, Drawdown: 0.00% (Max allowed: 25.0%)"}
+{"timestamp": "2026-04-30T11:22:55Z", "level": "INFO", "logger": "__main__", "message": "Position EURUSD: Type=0, Volume=0.01, Profit=$0.18"}
+{"timestamp": "2026-04-30T11:22:55Z", "level": "INFO", "logger": "__main__", "message": "Market Scan: XAUUSD | Trend strength=7.78 | RSI=59.58 | Signal=HOLD"}
+{"timestamp": "2026-04-30T11:22:55Z", "level": "INFO", "logger": "__main__", "message": "XAUUSD: Signal = HOLD"}
+{"timestamp": "2026-04-30T11:22:55Z", "level": "INFO", "logger": "__main__", "message": "Market Scan: EURUSD | Trend strength=2.37 | RSI=67.67 | Signal=HOLD"}
+{"timestamp": "2026-04-30T11:22:55Z", "level": "INFO", "logger": "__main__", "message": "EURUSD: Signal = HOLD"}
+{"timestamp": "2026-04-30T11:23:55Z", "level": "INFO", "logger": "__main__", "message": "--- Trading Cycle ---"}
+{"timestamp": "2026-04-30T11:23:55Z", "level": "INFO", "logger": "__main__", "message": "Equity Monitor - Current: $99.95, Peak: $99.95, Drawdown: 0.00% (Max allowed: 25.0%)"}
+{"timestamp": "2026-04-30T11:23:55Z", "level": "INFO", "logger": "__main__", "message": "Position EURUSD: Type=0, Volume=0.01, Profit=$0.21"}
+{"timestamp": "2026-04-30T11:23:55Z", "level": "INFO", "logger": "__main__", "message": "Market Scan: XAUUSD | Trend strength=7.49 | RSI=54.42 | Signal=HOLD"}
+{"timestamp": "2026-04-30T11:23:55Z", "level": "INFO", "logger": "__main__", "message": "XAUUSD: Signal = HOLD"}
+{"timestamp": "2026-04-30T11:23:55Z", "level": "INFO", "logger": "__main__", "message": "Market Scan: EURUSD | Trend strength=2.36 | RSI=68.13 | Signal=HOLD"}
+{"timestamp": "2026-04-30T11:23:55Z", "level": "INFO", "logger": "__main__", "message": "EURUSD: Signal = HOLD"}
+{"timestamp": "2026-04-30T11:24:55Z", "level": "INFO", "logger": "__main__", "message": "--- Trading Cycle ---"}
+{"timestamp": "2026-04-30T11:24:55Z", "level": "INFO", "logger": "__main__", "message": "Equity Monitor - Current: $99.69, Peak: $99.95, Drawdown: 0.26% (Max allowed: 25.0%)"}
+{"timestamp": "2026-04-30T11:24:55Z", "level": "INFO", "logger": "__main__", "message": "Position EURUSD: Type=0, Volume=0.01, Profit=$-0.05"}
+{"timestamp": "2026-04-30T11:24:55Z", "level": "INFO", "logger": "__main__", "message": "Market Scan: XAUUSD | Trend strength=7.48 | RSI=43.74 | Signal=HOLD"}
+{"timestamp": "2026-04-30T11:24:55Z", "level": "INFO", "logger": "__main__", "message": "XAUUSD: Signal = HOLD"}
+{"timestamp": "2026-04-30T11:24:55Z", "level": "INFO", "logger": "__main__", "message": "Market Scan: EURUSD | Trend strength=2.30 | RSI=56.00 | Signal=HOLD"}
+{"timestamp": "2026-04-30T11:24:55Z", "level": "INFO", "logger": "__main__", "message": "EURUSD: Signal = HOLD"}
+{"timestamp": "2026-04-30T11:25:55Z", "level": "INFO", "logger": "__main__", "message": "--- Trading Cycle ---"}
+{"timestamp": "2026-04-30T11:25:55Z", "level": "INFO", "logger": "__main__", "message": "Equity Monitor - Current: $99.90, Peak: $99.95, Drawdown: 0.05% (Max allowed: 25.0%)"}
+{"timestamp": "2026-04-30T11:25:55Z", "level": "INFO", "logger": "__main__", "message": "Position EURUSD: Type=0, Volume=0.01, Profit=$0.16"}
+{"timestamp": "2026-04-30T11:25:55Z", "level": "INFO", "logger": "__main__", "message": "Market Scan: XAUUSD | Trend strength=7.84 | RSI=46.51 | Signal=HOLD"}
+{"timestamp": "2026-04-30T11:25:55Z", "level": "INFO", "logger": "__main__", "message": "XAUUSD: Signal = HOLD"}
+{"timestamp": "2026-04-30T11:25:55Z", "level": "INFO", "logger": "__main__", "message": "Signal: EURUSD BUY | entry=1.17159, SL=1.17114, TP=1.17259, RR=2.20, spread=0.00002, trend_strength=2.50, profile_rr_min=1.60"}
+{"timestamp": "2026-04-30T11:25:55Z", "level": "INFO", "logger": "__main__", "message": "EURUSD: Signal = BUY"}
+{"timestamp": "2026-04-30T11:25:55Z", "level": "INFO", "logger": "__main__", "message": "Already have position for EURUSD"}
+{"timestamp": "2026-04-30T11:26:55Z", "level": "INFO", "logger": "__main__", "message": "--- Trading Cycle ---"}
+{"timestamp": "2026-04-30T11:26:55Z", "level": "INFO", "logger": "__main__", "message": "Equity Monitor - Current: $100.03, Peak: $100.03, Drawdown: 0.00% (Max allowed: 25.0%)"}
+{"timestamp": "2026-04-30T11:26:55Z", "level": "INFO", "logger": "__main__", "message": "Position EURUSD: Type=0, Volume=0.01, Profit=$0.29"}
+{"timestamp": "2026-04-30T11:26:55Z", "level": "INFO", "logger": "__main__", "message": "Market Scan: XAUUSD | Trend strength=7.83 | RSI=40.92 | Signal=HOLD"}
+{"timestamp": "2026-04-30T11:26:55Z", "level": "INFO", "logger": "__main__", "message": "XAUUSD: Signal = HOLD"}
+{"timestamp": "2026-04-30T11:26:55Z", "level": "INFO", "logger": "__main__", "message": "Signal: EURUSD BUY | entry=1.17172, SL=1.17127, TP=1.17272, RR=2.20, spread=0.00002, trend_strength=2.45, profile_rr_min=1.60"}
+{"timestamp": "2026-04-30T11:26:55Z", "level": "INFO", "logger": "__main__", "message": "EURUSD: Signal = BUY"}
+{"timestamp": "2026-04-30T11:26:55Z", "level": "INFO", "logger": "__main__", "message": "Already have position for EURUSD"}
+{"timestamp": "2026-04-30T11:27:55Z", "level": "INFO", "logger": "__main__", "message": "--- Trading Cycle ---"}
+{"timestamp": "2026-04-30T11:27:55Z", "level": "INFO", "logger": "__main__", "message": "Equity Monitor - Current: $100.15, Peak: $100.15, Drawdown: 0.00% (Max allowed: 25.0%)"}
+{"timestamp": "2026-04-30T11:27:55Z", "level": "INFO", "logger": "__main__", "message": "Position EURUSD: Type=0, Volume=0.01, Profit=$0.41"}
+{"timestamp": "2026-04-30T11:27:55Z", "level": "INFO", "logger": "__main__", "message": "Market Scan: XAUUSD | Trend strength=7.28 | RSI=30.94 | Signal=HOLD"}
+{"timestamp": "2026-04-30T11:27:55Z", "level": "INFO", "logger": "__main__", "message": "XAUUSD: Signal = HOLD"}
+{"timestamp": "2026-04-30T11:27:55Z", "level": "INFO", "logger": "__main__", "message": "Market Scan: EURUSD | Trend strength=2.45 | RSI=67.54 | Signal=HOLD"}
+{"timestamp": "2026-04-30T11:27:55Z", "level": "INFO", "logger": "__main__", "message": "EURUSD: Signal = HOLD"}
+{"timestamp": "2026-04-30T11:28:55Z", "level": "INFO", "logger": "__main__", "message": "--- Trading Cycle ---"}
+{"timestamp": "2026-04-30T11:28:55Z", "level": "INFO", "logger": "__main__", "message": "Equity Monitor - Current: $100.22, Peak: $100.22, Drawdown: 0.00% (Max allowed: 25.0%)"}
+{"timestamp": "2026-04-30T11:28:55Z", "level": "INFO", "logger": "__main__", "message": "Position EURUSD: Type=0, Volume=0.01, Profit=$0.48"}
+{"timestamp": "2026-04-30T11:28:55Z", "level": "INFO", "logger": "__main__", "message": "Market Scan: XAUUSD | Trend strength=7.14 | RSI=30.28 | Signal=HOLD"}
+{"timestamp": "2026-04-30T11:28:55Z", "level": "INFO", "logger": "__main__", "message": "XAUUSD: Signal = HOLD"}
+{"timestamp": "2026-04-30T11:28:55Z", "level": "INFO", "logger": "__main__", "message": "Market Scan: EURUSD | Trend strength=2.43 | RSI=69.29 | Signal=HOLD"}
+{"timestamp": "2026-04-30T11:28:55Z", "level": "INFO", "logger": "__main__", "message": "EURUSD: Signal = HOLD"}
+{"timestamp": "2026-04-30T11:29:55Z", "level": "INFO", "logger": "__main__", "message": "--- Trading Cycle ---"}
+{"timestamp": "2026-04-30T11:29:55Z", "level": "INFO", "logger": "__main__", "message": "Equity Monitor - Current: $99.96, Peak: $100.22, Drawdown: 0.26% (Max allowed: 25.0%)"}
+{"timestamp": "2026-04-30T11:29:55Z", "level": "INFO", "logger": "__main__", "message": "Position EURUSD: Type=0, Volume=0.01, Profit=$0.22"}
+{"timestamp": "2026-04-30T11:29:55Z", "level": "INFO", "logger": "__main__", "message": "Market Scan: XAUUSD | Trend strength=7.17 | RSI=51.63 | Signal=HOLD"}
+{"timestamp": "2026-04-30T11:29:55Z", "level": "INFO", "logger": "__main__", "message": "XAUUSD: Signal = HOLD"}
+{"timestamp": "2026-04-30T11:29:55Z", "level": "INFO", "logger": "__main__", "message": "Market Scan: EURUSD | Trend strength=2.43 | RSI=59.48 | Signal=HOLD"}
+{"timestamp": "2026-04-30T11:29:55Z", "level": "INFO", "logger": "__main__", "message": "EURUSD: Signal = HOLD"}
+{"timestamp": "2026-04-30T11:30:55Z", "level": "INFO", "logger": "__main__", "message": "--- Trading Cycle ---"}
+{"timestamp": "2026-04-30T11:30:55Z", "level": "INFO", "logger": "__main__", "message": "Equity Monitor - Current: $99.67, Peak: $100.22, Drawdown: 0.55% (Max allowed: 25.0%)"}
+{"timestamp": "2026-04-30T11:30:55Z", "level": "INFO", "logger": "__main__", "message": "Position EURUSD: Type=0, Volume=0.01, Profit=$-0.07"}
+{"timestamp": "2026-04-30T11:30:55Z", "level": "INFO", "logger": "__main__", "message": "Market Scan: XAUUSD | Trend strength=6.82 | RSI=40.79 | Signal=HOLD"}
+{"timestamp": "2026-04-30T11:30:55Z", "level": "INFO", "logger": "__main__", "message": "XAUUSD: Signal = HOLD"}
+{"timestamp": "2026-04-30T11:30:55Z", "level": "INFO", "logger": "__main__", "message": "Market Scan: EURUSD | Trend strength=2.55 | RSI=48.36 | Signal=HOLD"}
+{"timestamp": "2026-04-30T11:30:55Z", "level": "INFO", "logger": "__main__", "message": "EURUSD: Signal = HOLD"}
+{"timestamp": "2026-04-30T11:31:55Z", "level": "INFO", "logger": "__main__", "message": "--- Trading Cycle ---"}
+{"timestamp": "2026-04-30T11:31:55Z", "level": "INFO", "logger": "__main__", "message": "Equity Monitor - Current: $99.43, Peak: $100.22, Drawdown: 0.79% (Max allowed: 25.0%)"}
+{"timestamp": "2026-04-30T11:31:55Z", "level": "INFO", "logger": "__main__", "message": "Position EURUSD: Type=0, Volume=0.01, Profit=$-0.31"}
+{"timestamp": "2026-04-30T11:31:55Z", "level": "INFO", "logger": "__main__", "message": "Market Scan: XAUUSD | Trend strength=6.74 | RSI=39.12 | Signal=HOLD"}
+{"timestamp": "2026-04-30T11:31:55Z", "level": "INFO", "logger": "__main__", "message": "XAUUSD: Signal = HOLD"}
+{"timestamp": "2026-04-30T11:31:55Z", "level": "INFO", "logger": "__main__", "message": "Market Scan: EURUSD | Trend strength=2.48 | RSI=41.58 | Signal=HOLD"}
+{"timestamp": "2026-04-30T11:31:55Z", "level": "INFO", "logger": "__main__", "message": "EURUSD: Signal = HOLD"}
+{"timestamp": "2026-04-30T11:32:55Z", "level": "INFO", "logger": "__main__", "message": "--- Trading Cycle ---"}
+{"timestamp": "2026-04-30T11:32:55Z", "level": "INFO", "logger": "__main__", "message": "Equity Monitor - Current: $99.48, Peak: $100.22, Drawdown: 0.74% (Max allowed: 25.0%)"}
+{"timestamp": "2026-04-30T11:32:55Z", "level": "INFO", "logger": "__main__", "message": "Position EURUSD: Type=0, Volume=0.01, Profit=$-0.26"}
+{"timestamp": "2026-04-30T11:32:55Z", "level": "INFO", "logger": "__main__", "message": "Market Scan: XAUUSD | Trend strength=6.62 | RSI=38.42 | Signal=HOLD"}
+{"timestamp": "2026-04-30T11:32:55Z", "level": "INFO", "logger": "__main__", "message": "XAUUSD: Signal = HOLD"}
+{"timestamp": "2026-04-30T11:32:55Z", "level": "INFO", "logger": "__main__", "message": "Market Scan: EURUSD | Trend strength=2.47 | RSI=43.71 | Signal=HOLD"}
+{"timestamp": "2026-04-30T11:32:55Z", "level": "INFO", "logger": "__main__", "message": "EURUSD: Signal = HOLD"}
+{"timestamp": "2026-04-30T11:33:55Z", "level": "INFO", "logger": "__main__", "message": "--- Trading Cycle ---"}
+{"timestamp": "2026-04-30T11:33:57Z", "level": "WARNING", "logger": "__main__", "message": "Position closed outside robot flow: EURUSD (ticket=8433648138, reason=unknown, profit=unknown, closed_at=unknown time)"}
+{"timestamp": "2026-04-30T11:33:57Z", "level": "INFO", "logger": "__main__", "message": "Equity Monitor - Current: $99.28, Peak: $100.22, Drawdown: 0.94% (Max allowed: 25.0%)"}
+{"timestamp": "2026-04-30T11:33:57Z", "level": "INFO", "logger": "__main__", "message": "Market Scan: XAUUSD | Trend strength=6.48 | RSI=36.62 | Signal=HOLD"}
+{"timestamp": "2026-04-30T11:33:57Z", "level": "INFO", "logger": "__main__", "message": "XAUUSD: Signal = HOLD"}
+{"timestamp": "2026-04-30T11:33:57Z", "level": "INFO", "logger": "__main__", "message": "Market Scan: EURUSD | Trend strength=2.44 | RSI=49.22 | Signal=HOLD"}
+{"timestamp": "2026-04-30T11:33:57Z", "level": "INFO", "logger": "__main__", "message": "EURUSD: Signal = HOLD"}
+{"timestamp": "2026-04-30T11:34:57Z", "level": "INFO", "logger": "__main__", "message": "--- Trading Cycle ---"}
+{"timestamp": "2026-04-30T11:34:57Z", "level": "INFO", "logger": "__main__", "message": "Equity Monitor - Current: $99.28, Peak: $100.22, Drawdown: 0.94% (Max allowed: 25.0%)"}
+{"timestamp": "2026-04-30T11:34:57Z", "level": "INFO", "logger": "__main__", "message": "Market Scan: XAUUSD | Trend strength=6.48 | RSI=40.31 | Signal=HOLD"}
+{"timestamp": "2026-04-30T11:34:57Z", "level": "INFO", "logger": "__main__", "message": "XAUUSD: Signal = HOLD"}
+{"timestamp": "2026-04-30T11:34:57Z", "level": "INFO", "logger": "__main__", "message": "Market Scan: EURUSD | Trend strength=2.44 | RSI=53.33 | Signal=HOLD"}
+{"timestamp": "2026-04-30T11:34:57Z", "level": "INFO", "logger": "__main__", "message": "EURUSD: Signal = HOLD"}
+{"timestamp": "2026-04-30T11:35:57Z", "level": "INFO", "logger": "__main__", "message": "--- Trading Cycle ---"}
+{"timestamp": "2026-04-30T11:35:57Z", "level": "INFO", "logger": "__main__", "message": "Equity Monitor - Current: $99.28, Peak: $100.22, Drawdown: 0.94% (Max allowed: 25.0%)"}
+{"timestamp": "2026-04-30T11:35:57Z", "level": "INFO", "logger": "__main__", "message": "Market Scan: XAUUSD | Trend strength=6.67 | RSI=40.53 | Signal=HOLD"}
+{"timestamp": "2026-04-30T11:35:57Z", "level": "INFO", "logger": "__main__", "message": "XAUUSD: Signal = HOLD"}
+{"timestamp": "2026-04-30T11:35:57Z", "level": "INFO", "logger": "__main__", "message": "Market Scan: EURUSD | Trend strength=2.72 | RSI=57.38 | Signal=HOLD"}
+{"timestamp": "2026-04-30T11:35:57Z", "level": "INFO", "logger": "__main__", "message": "EURUSD: Signal = HOLD"}
+{"timestamp": "2026-04-30T11:36:57Z", "level": "INFO", "logger": "__main__", "message": "--- Trading Cycle ---"}
+{"timestamp": "2026-04-30T11:36:57Z", "level": "INFO", "logger": "__main__", "message": "Equity Monitor - Current: $99.28, Peak: $100.22, Drawdown: 0.94% (Max allowed: 25.0%)"}
+{"timestamp": "2026-04-30T11:36:57Z", "level": "INFO", "logger": "__main__", "message": "Market Scan: XAUUSD | Trend strength=6.67 | RSI=40.61 | Signal=HOLD"}
+{"timestamp": "2026-04-30T11:36:57Z", "level": "INFO", "logger": "__main__", "message": "XAUUSD: Signal = HOLD"}
+{"timestamp": "2026-04-30T11:36:57Z", "level": "INFO", "logger": "__main__", "message": "Market Scan: EURUSD | Trend strength=2.64 | RSI=63.35 | Signal=HOLD"}
+{"timestamp": "2026-04-30T11:36:57Z", "level": "INFO", "logger": "__main__", "message": "EURUSD: Signal = HOLD"}
+{"timestamp": "2026-04-30T11:37:57Z", "level": "INFO", "logger": "__main__", "message": "--- Trading Cycle ---"}
+{"timestamp": "2026-04-30T11:37:57Z", "level": "INFO", "logger": "__main__", "message": "Equity Monitor - Current: $99.28, Peak: $100.22, Drawdown: 0.94% (Max allowed: 25.0%)"}
+{"timestamp": "2026-04-30T11:37:57Z", "level": "INFO", "logger": "__main__", "message": "Market Scan: XAUUSD | Trend strength=6.57 | RSI=41.20 | Signal=HOLD"}
+{"timestamp": "2026-04-30T11:37:57Z", "level": "INFO", "logger": "__main__", "message": "XAUUSD: Signal = HOLD"}
+{"timestamp": "2026-04-30T11:37:57Z", "level": "INFO", "logger": "__main__", "message": "EURUSD: Signal = HOLD"}
+{"timestamp": "2026-04-30T11:38:57Z", "level": "INFO", "logger": "__main__", "message": "--- Trading Cycle ---"}
+{"timestamp": "2026-04-30T11:38:57Z", "level": "INFO", "logger": "__main__", "message": "Equity Monitor - Current: $99.28, Peak: $100.22, Drawdown: 0.94% (Max allowed: 25.0%)"}
+{"timestamp": "2026-04-30T11:38:57Z", "level": "INFO", "logger": "__main__", "message": "Market Scan: XAUUSD | Trend strength=6.57 | RSI=40.56 | Signal=HOLD"}
+{"timestamp": "2026-04-30T11:38:57Z", "level": "INFO", "logger": "__main__", "message": "XAUUSD: Signal = HOLD"}
+{"timestamp": "2026-04-30T11:38:57Z", "level": "INFO", "logger": "__main__", "message": "Market Scan: EURUSD | Trend strength=2.59 | RSI=65.58 | Signal=HOLD"}
+{"timestamp": "2026-04-30T11:38:57Z", "level": "INFO", "logger": "__main__", "message": "EURUSD: Signal = HOLD"}
